@@ -98,22 +98,44 @@ export default defineConfig({
 
         generateIcons(distDir);
 
-        const htmlFiles = [
-          path.resolve(distDir, 'src/newtab/index.html'),
-          path.resolve(distDir, 'src/newtab/popup.html'),
-          path.resolve(distDir, 'src/newtab/options.html'),
+        // Copy and fix HTML files to dist root
+        const htmlSourceFiles = [
+          { src: path.resolve(__dirname, 'src/newtab/index.html'), dest: path.resolve(distDir, 'newtab.html') },
+          { src: path.resolve(__dirname, 'src/newtab/popup.html'), dest: path.resolve(distDir, 'popup.html') },
+          { src: path.resolve(__dirname, 'src/newtab/options.html'), dest: path.resolve(distDir, 'options.html') },
         ];
 
-        htmlFiles.forEach((htmlPath) => {
-          if (fs.existsSync(htmlPath)) {
-            let content = fs.readFileSync(htmlPath, 'utf-8');
-            content = content.replace(/src="\/\//g, 'src="../../');
-            content = content.replace(/src="\//g, 'src="../../');
-            content = content.replace(/href="\/\//g, 'href="../../');
-            content = content.replace(/href="\//g, 'href="../../');
-            fs.writeFileSync(htmlPath, content);
+        htmlSourceFiles.forEach(({ src, dest }) => {
+          if (fs.existsSync(src)) {
+            let content = fs.readFileSync(src, 'utf-8');
+            // Fix script paths to point to the correct location
+            content = content.replace(/src="\.\/main\.tsx"/g, 'src="./main.js"');
+            content = content.replace(/src="\.\/popup\.tsx"/g, 'src="./popup.js"');
+            content = content.replace(/src="\.\/options\.tsx"/g, 'src="./options.js"');
+            fs.writeFileSync(dest, content);
           }
         });
+
+        // Update manifest to point to the correct HTML files
+        if (fs.existsSync(manifestTarget)) {
+          let manifestContent = fs.readFileSync(manifestTarget, 'utf-8');
+          const manifest = JSON.parse(manifestContent);
+          
+          // Update newtab page path
+          if (manifest.chrome_url_overrides?.newtab) {
+            manifest.chrome_url_overrides.newtab = 'newtab.html';
+          }
+          // Update action default popup
+          if (manifest.action?.default_popup) {
+            manifest.action.default_popup = 'popup.html';
+          }
+          // Update options page
+          if (manifest.options_page) {
+            manifest.options_page = 'options.html';
+          }
+          
+          fs.writeFileSync(manifestTarget, JSON.stringify(manifest, null, 2));
+        }
       },
     },
   ],
@@ -130,9 +152,9 @@ export default defineConfig({
     emptyOutDir: true,
     rollupOptions: {
       input: {
-        newtab: path.resolve(__dirname, 'src/newtab/index.html'),
-        popup: path.resolve(__dirname, 'src/newtab/popup.html'),
-        options: path.resolve(__dirname, 'src/newtab/options.html'),
+        main: path.resolve(__dirname, 'src/newtab/main.tsx'),
+        popup: path.resolve(__dirname, 'src/newtab/popup.tsx'),
+        options: path.resolve(__dirname, 'src/newtab/options.tsx'),
         background: path.resolve(__dirname, 'src/background/service-worker.ts'),
         content: path.resolve(__dirname, 'src/content/content-script.ts'),
       },

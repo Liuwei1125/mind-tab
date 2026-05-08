@@ -1,0 +1,1 @@
+import{c as e,j as t}from"./globals.js";import{R as o}from"./index.js";import{P as r}from"./PopupPage.js";e.createRoot(document.getElementById("root")).render(t.jsx(o.StrictMode,{children:t.jsx(r,{})}));

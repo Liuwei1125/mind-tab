@@ -1,0 +1,1 @@
+import{c as o,j as t}from"./globals.js";import{R as e}from"./index.js";import{O as r}from"./OptionsPage.js";import"./middleware.js";o.createRoot(document.getElementById("root")).render(t.jsx(e.StrictMode,{children:t.jsx(r,{})}));
