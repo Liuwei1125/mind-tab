@@ -14,7 +14,7 @@ export default defineConfig({
   plugins: [
     react(),
     {
-      name: 'copy-manifest',
+      name: 'copy-manifest-and-fix-html',
       closeBundle() {
         const manifestSource = path.resolve(__dirname, 'manifest.json');
         const distDir = path.resolve(__dirname, 'dist');
@@ -27,6 +27,23 @@ export default defineConfig({
         if (fs.existsSync(manifestSource)) {
           fs.copyFileSync(manifestSource, manifestTarget);
         }
+
+        const htmlFiles = [
+          path.resolve(distDir, 'src/newtab/index.html'),
+          path.resolve(distDir, 'src/newtab/popup.html'),
+          path.resolve(distDir, 'src/newtab/options.html'),
+        ];
+
+        htmlFiles.forEach((htmlPath) => {
+          if (fs.existsSync(htmlPath)) {
+            let content = fs.readFileSync(htmlPath, 'utf-8');
+            content = content.replace(/src="\/\//g, 'src="../../');
+            content = content.replace(/src="\//g, 'src="../../');
+            content = content.replace(/href="\/\//g, 'href="../../');
+            content = content.replace(/href="\//g, 'href="../../');
+            fs.writeFileSync(htmlPath, content);
+          }
+        });
       },
     },
   ],
@@ -48,6 +65,11 @@ export default defineConfig({
         options: path.resolve(__dirname, 'src/newtab/options.html'),
         background: path.resolve(__dirname, 'src/background/service-worker.ts'),
         content: path.resolve(__dirname, 'src/content/content-script.ts'),
+      },
+      output: {
+        entryFileNames: '[name].js',
+        chunkFileNames: '[name].js',
+        assetFileNames: '[name].[ext]',
       },
     },
   },

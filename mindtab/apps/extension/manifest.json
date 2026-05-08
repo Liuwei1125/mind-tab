@@ -16,7 +16,7 @@
     "http://*/*"
   ],
   "action": {
-    "default_popup": "popup/index.html",
+    "default_popup": "src/newtab/popup.html",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",
@@ -25,21 +25,21 @@
     }
   },
   "background": {
-    "service_worker": "background/service-worker.js",
+    "service_worker": "background.js",
     "type": "module"
   },
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["content/content-script.js"],
+      "js": ["content.js"],
       "run_at": "document_idle"
     }
   ],
   "chrome_url_overrides": {
-    "newtab": "newtab/index.html"
+    "newtab": "src/newtab/index.html"
   },
   "options_ui": {
-    "page": "options/index.html",
+    "page": "src/newtab/options.html",
     "open_in_tab": true
   },
   "icons": {
