@@ -111,7 +111,7 @@ export default defineConfig({
             content = content.replace(/src="\.\/popup\.tsx"/g, 'src="./popup.js"');
             content = content.replace(/src="\.\/options\.tsx"/g, 'src="./options.js"');
             if (!content.includes('globals.css')) {
-              content = content.replace('</head>', '    <link rel="stylesheet" href="./globals.css" />\n  </head>');
+              content = content.replace('</head>', '    <link rel="stylesheet" href="./globals.css" />\n    <link rel="stylesheet" href="./main.css" />\n  </head>');
             }
             fs.writeFileSync(dest, content);
           }
