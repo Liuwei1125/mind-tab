@@ -3,11 +3,79 @@ import react from '@vitejs/plugin-react';
 import { fileURLToPath } from 'url';
 import path from 'path';
 import fs from 'fs';
+import zlib from 'zlib';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 function resolvePackages(pkg: string) {
   return path.resolve(__dirname, `../../packages/${pkg}/src`);
+}
+
+function createSimplePNG(size: number): Buffer {
+  const header = Buffer.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
+
+  const ihdr = createChunk('IHDR', Buffer.from([
+    (size >> 24) & 0xFF, (size >> 16) & 0xFF, (size >> 8) & 0xFF, size & 0xFF,
+    (size >> 24) & 0xFF, (size >> 16) & 0xFF, (size >> 8) & 0xFF, size & 0xFF,
+    8, 2, 0, 0, 0
+  ]));
+
+  const rawData: number[] = [];
+  for (let y = 0; y < size; y++) {
+    rawData.push(0);
+    for (let x = 0; x < size; x++) {
+      const centerX = size / 2;
+      const centerY = size / 2;
+      const radius = size * 0.4;
+      const dist = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+
+      if (dist < radius) {
+        rawData.push(66, 135, 245, 255);
+      } else {
+        rawData.push(255, 255, 255, 255);
+      }
+    }
+  }
+
+  const rawBuffer = Buffer.from(rawData);
+  const idat = createChunk('IDAT', zlib.deflateSync(rawBuffer));
+  const iend = createChunk('IEND', Buffer.alloc(0));
+
+  return Buffer.concat([header, ihdr, idat, iend]);
+}
+
+function createChunk(type: string, data: Buffer): Buffer {
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(data.length, 0);
+  const typeBuffer = Buffer.from(type, 'ascii');
+  const crcData = Buffer.concat([typeBuffer, data]);
+  const crc = Buffer.alloc(4);
+  crc.writeUInt32BE(crc32(crcData), 0);
+  return Buffer.concat([length, typeBuffer, data, crc]);
+}
+
+function crc32(buffer: Buffer): number {
+  let crc = 0xFFFFFFFF;
+  for (let i = 0; i < buffer.length; i++) {
+    crc ^= buffer[i];
+    for (let j = 0; j < 8; j++) {
+      crc = (crc >>> 1) ^ (crc & 1 ? 0xEDB88320 : 0);
+    }
+  }
+  return (crc ^ 0xFFFFFFFF) >>> 0;
+}
+
+function generateIcons(distDir: string) {
+  const iconsDir = path.join(distDir, 'icons');
+  if (!fs.existsSync(iconsDir)) {
+    fs.mkdirSync(iconsDir, { recursive: true });
+  }
+
+  const sizes = [16, 32, 48, 128];
+  sizes.forEach(size => {
+    const png = createSimplePNG(size);
+    fs.writeFileSync(path.join(iconsDir, `icon${size}.png`), png);
+  });
 }
 
 export default defineConfig({
@@ -27,6 +95,8 @@ export default defineConfig({
         if (fs.existsSync(manifestSource)) {
           fs.copyFileSync(manifestSource, manifestTarget);
         }
+
+        generateIcons(distDir);
 
         const htmlFiles = [
           path.resolve(distDir, 'src/newtab/index.html'),
