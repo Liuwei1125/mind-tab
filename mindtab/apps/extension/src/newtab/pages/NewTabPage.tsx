@@ -46,6 +46,38 @@ const useTodoStore = create<TodoStore>()(
           createdAt: Date.now(),
         };
         set((state) => ({ todos: [newTodo, ...state.todos] }));
+      },
+      toggleTodo: (id) => {
+        set((state) => ({
+          todos: state.todos.map((todo) =>
+            todo.id === id ? { ...todo, completed: !todo.completed } : todo
+          ),
+        }));
+      },
+      deleteTodo: (id) => {
+        set((state) => ({
+          todos: state.todos.filter((todo) => todo.id !== id),
+        }));
+      },
+      editTodo: (id, text) => {
+        set((state) => ({
+          todos: state.todos.map((todo) =>
+            todo.id === id ? { ...todo, text } : todo
+          ),
+        }));
+      },
+      clearCompleted: () => {
+        set((state) => ({
+          todos: state.todos.filter((todo) => !todo.completed),
+        }));
+      },
+    }),
+    {
+      name: 'mindtab-todos',
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+);
 
 interface NoteItem {
   id: string;
@@ -97,38 +129,6 @@ const useNoteStore = create<NoteStore>()(
     }
   )
 );
-      },
-      toggleTodo: (id) => {
-        set((state) => ({
-          todos: state.todos.map((todo) =>
-            todo.id === id ? { ...todo, completed: !todo.completed } : todo
-          ),
-        }));
-      },
-      deleteTodo: (id) => {
-        set((state) => ({
-          todos: state.todos.filter((todo) => todo.id !== id),
-        }));
-      },
-      editTodo: (id, text) => {
-        set((state) => ({
-          todos: state.todos.map((todo) =>
-            todo.id === id ? { ...todo, text } : todo
-          ),
-        }));
-      },
-      clearCompleted: () => {
-        set((state) => ({
-          todos: state.todos.filter((todo) => !todo.completed),
-        }));
-      },
-    }),
-    {
-      name: 'mindtab-todos',
-      storage: createJSONStorage(() => localStorage),
-    }
-  )
-);
 
 export function NewTabPage() {
   return (
@@ -169,101 +169,81 @@ function TopNav() {
           </svg>
           <input
             type="search"
-            placeholder="搜索或输入网址..."
-            className="w-full h-10 pl-10 pr-4 bg-surface-card text-ink text-sm rounded-full border border-hairline transition-colors placeholder:text-muted-soft focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+            placeholder="搜索..."
+            className="w-full h-8 pl-10 pr-4 bg-surface-card text-sm rounded-full border border-hairline focus:outline-none focus:border-primary"
           />
         </div>
       </div>
 
       <div className="flex items-center gap-2">
-        <button className="w-9 h-9 rounded-full bg-surface-card border border-hairline flex items-center justify-center text-muted hover:text-ink hover:bg-surface-soft transition-colors">
+        <button className="w-8 h-8 rounded flex items-center justify-center text-muted-soft hover:text-ink hover:bg-surface-soft transition-colors">
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
         </button>
-        <button className="w-9 h-9 rounded-full bg-surface-card border border-hairline flex items-center justify-center text-muted hover:text-ink hover:bg-surface-soft transition-colors">
+        <button className="w-8 h-8 rounded flex items-center justify-center text-muted-soft hover:text-ink hover:bg-surface-soft transition-colors">
           <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-            <circle cx="12" cy="12" r="3" />
+            <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
           </svg>
         </button>
-        <div className="w-8 h-8 rounded-full bg-surface-card border border-hairline flex items-center justify-center text-muted text-xs font-medium">
-          U
-        </div>
+        <button className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+          <span className="text-xs font-medium">M</span>
+        </button>
       </div>
     </header>
   );
 }
 
 function LeftSidebar() {
+  const [activeItem, setActiveItem] = useState('home');
+
   const menuItems = [
-    { icon: 'home', label: '首页', active: true },
-    { icon: 'widget', label: '组件' },
-    { icon: 'memory', label: '记忆' },
-    { icon: 'workshop', label: '工坊' },
-    { icon: 'bookmark', label: '书签' },
+    { id: 'home', icon: 'home', label: '主页' },
+    { id: 'memory', icon: 'brain', label: '记忆' },
+    { id: 'search', icon: 'search', label: '搜索' },
+    { id: 'settings', icon: 'settings', label: '设置' },
   ];
 
-  const iconMap: Record<string, React.ReactNode> = {
-    home: (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-        <polyline points="9 22 9 12 15 12 15 22" />
-      </svg>
-    ),
-    widget: (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <rect x="3" y="3" width="7" height="7" />
-        <rect x="14" y="3" width="7" height="7" />
-        <rect x="14" y="14" width="7" height="7" />
-        <rect x="3" y="14" width="7" height="7" />
-      </svg>
-    ),
-    memory: (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M12 2a9 9 0 0 0-9 9c0 4.17 2.84 7.67 6.69 8.69a.5.5 0 0 0 .62-.45V17.5a.5.5 0 0 0-.26-.44A6.5 6.5 0 0 1 5.5 11a6.5 6.5 0 0 1 13 0 6.5 6.5 0 0 1-5.56 6.06.5.5 0 0 0-.26.44v1.74a.5.5 0 0 0 .62.45A9 9 0 0 0 12 2z" />
-      </svg>
-    ),
-    workshop: (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />
-      </svg>
-    ),
-    bookmark: (
-      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
-      </svg>
-    ),
-  };
-
   return (
-    <aside className="w-16 bg-surface-soft/50 border-r border-hairline flex flex-col items-center py-4 gap-2">
+    <aside className="w-16 border-r border-hairline p-2 flex flex-col">
       {menuItems.map((item) => (
         <button
-          key={item.label}
-          className={`w-10 h-10 rounded-lg flex flex-col items-center justify-center transition-all duration-150 ${
-            item.active
-              ? 'bg-primary text-on-primary'
-              : 'text-muted hover:bg-surface-card hover:text-ink'
+          key={item.id}
+          onClick={() => setActiveItem(item.id)}
+          className={`w-full aspect-square rounded-lg flex flex-col items-center justify-center gap-1 transition-colors ${
+            activeItem === item.id
+              ? 'bg-primary/10 text-primary'
+              : 'text-muted-soft hover:text-ink hover:bg-surface-soft'
           }`}
-          title={item.label}
         >
-          {iconMap[item.icon]}
+          <Icon icon={item.icon} />
+          <span className="text-[10px]">{item.label}</span>
         </button>
       ))}
-
-      <div className="flex-1" />
-
-      <button
-        className="w-10 h-10 rounded-lg flex items-center justify-center text-muted hover:bg-surface-card hover:text-ink transition-colors"
-        title="添加组件"
-      >
-        <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <line x1="12" y1="5" x2="12" y2="19" />
-          <line x1="5" y1="12" x2="19" y2="12" />
-        </svg>
-      </button>
     </aside>
+  );
+}
+
+function Icon({ icon }: { icon: string }) {
+  switch (icon) {
+    case 'home':
+      return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>;
+    case 'brain':
+      return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 4.5a2.5 2.5 0 0 0-4.96-.46 2.5 2.5 0 0 0-1.98 3 2.5 2.5 0 0 0 1.45 4.01 2.5 2.5 0 0 0-1.32 4.23 2.5 2.5 0 0 0 3.59 2.01 2.5 2.5 0 0 0 2.96-.46 2.5 2.5 0 0 0 2.96.46 2.5 2.5 0 0 0 3.59-2.01 2.5 2.5 0 0 0-1.32-4.23 2.5 2.5 0 0 0 1.98-3A2.5 2.5 0 0 0 16.96 4.04 2.5 2.5 0 0 0 12 4.5z" /></svg>;
+    case 'search':
+      return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>;
+    case 'settings':
+      return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>;
+    default:
+      return null;
+  }
+}
+
+function MainContent() {
+  return (
+    <main className="flex-1 overflow-auto p-6">
+      <WidgetCanvas />
+    </main>
   );
 }
 
@@ -318,14 +298,6 @@ const useWidgetLayoutStore = create<WidgetLayoutStore>()(
     }
   )
 );
-
-function MainContent() {
-  return (
-    <main className="flex-1 overflow-auto p-6">
-      <WidgetCanvas />
-    </main>
-  );
-}
 
 function WidgetCanvas() {
   const { widgets, isEditMode, toggleEditMode, reorderWidgets } = useWidgetLayoutStore();
@@ -474,20 +446,20 @@ function WidgetContent({ type }: { type: string }) {
 }
 
 function ClockWidget() {
-  const [time, setTime] = React.useState(new Date());
+  const [time, setTime] = useState(new Date());
 
-  React.useEffect(() => {
+  useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(timer);
   }, []);
 
   return (
     <div className="text-center">
-      <div className="font-serif text-4xl text-ink tracking-tight">
+      <div className="font-serif text-4xl text-ink font-light">
         {time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
       </div>
       <div className="text-sm text-muted mt-1">
-        {time.toLocaleDateString('zh-CN', { month: 'long', day: 'numeric', weekday: 'long' })}
+        {time.toLocaleDateString('zh-CN', { weekday: 'long', month: 'long', day: 'numeric' })}
       </div>
     </div>
   );
@@ -516,7 +488,7 @@ const useWeatherStore = create<WeatherStore>((set, get) => ({
   fetchWeather: async () => {
     set({ isLoading: true, error: null });
     try {
-      const position = await new Promise<{ lat: number; lon: number }>((resolve, reject) => {
+      const position = await new Promise<{ lat: number; lon: number }>((resolve) => {
         navigator.geolocation.getCurrentPosition(
           (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
           () => resolve({ lat: 39.9042, lon: 116.4074 })
@@ -735,6 +707,103 @@ function TodoWidget() {
               清除已完成
             </button>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SearchWidget() {
+  const [query, setQuery] = useState('');
+  const [selectedEngine, setSelectedEngine] = useState('google');
+  const [isFocused, setIsFocused] = useState(false);
+
+  const searchEngines = {
+    google: { name: 'Google', icon: '🔍', url: 'https://www.google.com/search?q=' },
+    bing: { name: 'Bing', icon: '🌐', url: 'https://www.bing.com/search?q=' },
+    baidu: { name: '百度', icon: '🌏', url: 'https://www.baidu.com/s?wd=' },
+    github: { name: 'GitHub', icon: '🐙', url: 'https://github.com/search?q=' },
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (query.trim()) {
+      const engine = searchEngines[selectedEngine as keyof typeof searchEngines];
+      window.open(`${engine.url}${encodeURIComponent(query)}`, '_blank');
+    }
+  };
+
+  const quickSuggestions = [
+    'JavaScript 教程',
+    'React Hooks',
+    'TypeScript 入门',
+  ];
+
+  return (
+    <div className="relative">
+      <form onSubmit={handleSearch} className="relative">
+        <svg
+          className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-soft"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <circle cx="11" cy="11" r="8" />
+          <path d="m21 21-4.3-4.3" />
+        </svg>
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setTimeout(() => setIsFocused(false), 200)}
+          placeholder="搜索或选择引擎..."
+          className="w-full h-9 pl-10 pr-20 bg-canvas text-sm rounded-full border border-hairline focus:outline-none focus:border-primary transition-colors"
+        />
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          <select
+            value={selectedEngine}
+            onChange={(e) => setSelectedEngine(e.target.value)}
+            className="h-6 px-1 text-xs bg-transparent border-none text-muted focus:outline-none cursor-pointer"
+          >
+            {Object.entries(searchEngines).map(([key, engine]) => (
+              <option key={key} value={key}>
+                {engine.icon}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            className="w-6 h-6 flex items-center justify-center bg-primary/10 text-primary rounded-full hover:bg-primary hover:text-on-primary transition-colors"
+          >
+            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
+          </button>
+        </div>
+      </form>
+
+      {isFocused && !query && (
+        <div className="absolute top-full left-0 right-0 mt-2 bg-surface-card border border-hairline rounded-lg shadow-lg z-50 overflow-hidden">
+          <div className="px-3 py-2 text-xs text-muted border-b border-hairline/50">
+            快捷搜索
+          </div>
+          <div className="p-2">
+            {quickSuggestions.map((suggestion) => (
+              <button
+                key={suggestion}
+                onClick={() => {
+                  setQuery(suggestion);
+                  window.open(`${searchEngines[selectedEngine as keyof typeof searchEngines].url}${encodeURIComponent(suggestion)}`, '_blank');
+                }}
+                className="w-full text-left px-2 py-1.5 text-sm text-body hover:bg-surface-soft rounded transition-colors"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -1115,163 +1184,78 @@ function AIChatWidget() {
   );
 }
 
-function SearchWidget() {
-  const [query, setQuery] = useState('');
-  const [selectedEngine, setSelectedEngine] = useState('google');
-  const [isFocused, setIsFocused] = useState(false);
-
-  const searchEngines = {
-    google: { name: 'Google', icon: '🔍', url: 'https://www.google.com/search?q=' },
-    bing: { name: 'Bing', icon: '🌐', url: 'https://www.bing.com/search?q=' },
-    baidu: { name: '百度', icon: '🌏', url: 'https://www.baidu.com/s?wd=' },
-    github: { name: 'GitHub', icon: '🐙', url: 'https://github.com/search?q=' },
-  };
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (query.trim()) {
-      const engine = searchEngines[selectedEngine as keyof typeof searchEngines];
-      window.open(`${engine.url}${encodeURIComponent(query)}`, '_blank');
-    }
-  };
-
-  const quickSuggestions = [
-    'JavaScript 教程',
-    'React Hooks',
-    'TypeScript 入门',
-  ];
-
-  return (
-    <div className="relative">
-      <form onSubmit={handleSearch} className="relative">
-        <svg
-          className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-soft"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-        >
-          <circle cx="11" cy="11" r="8" />
-          <path d="m21 21-4.3-4.3" />
-        </svg>
-        <input
-          type="search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onFocus={() => setIsFocused(true)}
-          onBlur={() => setTimeout(() => setIsFocused(false), 200)}
-          placeholder="搜索或选择引擎..."
-          className="w-full h-9 pl-10 pr-20 bg-canvas text-sm rounded-full border border-hairline focus:outline-none focus:border-primary transition-colors"
-        />
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
-          <select
-            value={selectedEngine}
-            onChange={(e) => setSelectedEngine(e.target.value)}
-            className="h-6 px-1 text-xs bg-transparent border-none text-muted focus:outline-none cursor-pointer"
-          >
-            {Object.entries(searchEngines).map(([key, engine]) => (
-              <option key={key} value={key}>
-                {engine.icon}
-              </option>
-            ))}
-          </select>
-          <button
-            type="submit"
-            className="w-6 h-6 flex items-center justify-center bg-primary/10 text-primary rounded-full hover:bg-primary hover:text-on-primary transition-colors"
-          >
-            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="5" y1="12" x2="19" y2="12" />
-              <polyline points="12 5 19 12 12 19" />
-            </svg>
-          </button>
-        </div>
-      </form>
-
-      {isFocused && !query && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-surface-card border border-hairline rounded-lg shadow-lg z-50 overflow-hidden">
-          <div className="px-3 py-2 text-xs text-muted border-b border-hairline/50">
-            快捷搜索
-          </div>
-          <div className="p-2">
-            {quickSuggestions.map((suggestion) => (
-              <button
-                key={suggestion}
-                onClick={() => {
-                  setQuery(suggestion);
-                  window.open(`${searchEngines[selectedEngine as keyof typeof searchEngines].url}${encodeURIComponent(suggestion)}`, '_blank');
-                }}
-                className="w-full text-left px-2 py-1.5 text-sm text-body hover:bg-surface-soft rounded transition-colors"
-              >
-                {suggestion}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
 function RightPanel() {
   return (
-    <aside className="w-80 bg-surface-soft/30 border-l border-hairline p-4 overflow-auto">
-      <div className="mb-6">
-        <h3 className="font-serif text-lg text-ink mb-3">快捷操作</h3>
-        <div className="space-y-2">
-          <QuickAction icon="📄" label="新建笔记" />
-          <QuickAction icon="📋" label="剪贴板" />
-          <QuickAction icon="🔖" label="保存页面" />
-        </div>
+    <aside className="w-64 border-l border-hairline p-4">
+      <h3 className="text-sm font-medium text-muted mb-4">快捷操作</h3>
+      <div className="space-y-2">
+        <ActionItem icon="file" label="新建文档" />
+        <ActionItem icon="image" label="上传图片" />
+        <ActionItem icon="link" label="添加链接" />
+        <ActionItem icon="video" label="录制视频" />
       </div>
 
-      <div className="mb-6">
-        <h3 className="font-serif text-lg text-ink mb-3">最近标签页</h3>
-        <div className="space-y-2">
-          <RecentTab title="GitHub - 仓库" url="github.com" />
-          <RecentTab title="Notion - 工作空间" url="notion.so" />
-          <RecentTab title="Claude AI" url="claude.ai" />
-        </div>
+      <h3 className="text-sm font-medium text-muted mb-4 mt-6">最近访问</h3>
+      <div className="space-y-2">
+        <RecentItem title="项目文档" time="5分钟前" />
+        <RecentItem title="会议记录" time="1小时前" />
+        <RecentItem title="设计稿" time="昨天" />
       </div>
 
-      <div className="mb-6">
-        <h3 className="font-serif text-lg text-ink mb-3">AI 推荐</h3>
-        <div className="bg-surface-card rounded-lg p-4 border border-hairline/50">
-          <p className="text-sm text-body mb-3">
-            基于你的浏览历史，你可能对以下内容感兴趣：
-          </p>
-          <div className="space-y-2">
-            <button className="w-full text-left px-3 py-2 rounded-md bg-canvas text-sm text-muted hover:bg-surface-soft hover:text-ink transition-colors">
-              继续上次的研究项目 →
-            </button>
-            <button className="w-full text-left px-3 py-2 rounded-md bg-canvas text-sm text-muted hover:bg-surface-soft hover:text-ink transition-colors">
-              查看相关标签页 →
-            </button>
-          </div>
-        </div>
+      <h3 className="text-sm font-medium text-muted mb-4 mt-6">快速链接</h3>
+      <div className="space-y-2">
+        <QuickLink href="https://github.com" label="GitHub" />
+        <QuickLink href="https://notion.so" label="Notion" />
+        <QuickLink href="https://calendar.google.com" label="日历" />
       </div>
     </aside>
   );
 }
 
-function QuickAction({ icon, label }: { icon: string; label: string }) {
+function ActionItem({ icon, label }: { icon: string; label: string }) {
   return (
-    <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg bg-surface-card text-sm text-body hover:bg-surface-soft transition-colors">
-      <span className="text-base">{icon}</span>
-      <span>{label}</span>
+    <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-body hover:bg-surface-soft transition-colors">
+      <Icon icon={icon} />
+      {label}
     </button>
   );
 }
 
-function RecentTab({ title, url }: { title: string; url: string }) {
+function RecentItem({ title, time }: { title: string; time: string }) {
   return (
-    <button className="w-full flex items-center gap-3 px-2 py-2 rounded-lg text-left hover:bg-surface-card transition-colors group">
-      <div className="w-8 h-8 rounded bg-surface-card border border-hairline flex items-center justify-center text-muted-soft text-xs">
-        {url.slice(0, 2).toUpperCase()}
+    <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-body hover:bg-surface-soft transition-colors">
+      <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center">
+        <svg className="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+          <polyline points="10 9 9 9 8 9" />
+        </svg>
       </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-sm text-ink truncate">{title}</div>
-        <div className="text-xs text-muted-soft truncate">{url}</div>
+      <div className="flex-1 text-left">
+        <div className="text-sm text-body">{title}</div>
+        <div className="text-xs text-muted-soft">{time}</div>
       </div>
     </button>
+  );
+}
+
+function QuickLink({ href, label }: { href: string; label: string }) {
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-body hover:bg-surface-soft transition-colors"
+    >
+      <div className="w-8 h-8 bg-surface-soft rounded flex items-center justify-center">
+        <svg className="w-4 h-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+        </svg>
+      </div>
+      {label}
+    </a>
   );
 }
