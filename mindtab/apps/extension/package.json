@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite build --watch",
     "build": "vite build",
+    "preview": "npm run build && echo 'Build complete! Refresh chrome://extensions'",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
