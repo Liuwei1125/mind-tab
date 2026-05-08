@@ -129,9 +129,12 @@ export default defineConfig({
           if (manifest.action?.default_popup) {
             manifest.action.default_popup = 'popup.html';
           }
-          // Update options page
+          // Update options page (both options_page and options_ui.page)
           if (manifest.options_page) {
             manifest.options_page = 'options.html';
+          }
+          if (manifest.options_ui?.page) {
+            manifest.options_ui.page = 'options.html';
           }
           
           fs.writeFileSync(manifestTarget, JSON.stringify(manifest, null, 2));
