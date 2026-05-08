@@ -164,6 +164,19 @@ h4 { font-size: 28px; letter-spacing: -0.3px; }
   overflow-y: auto;
 }
 
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--spacing-lg);
+}
+
+.top-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-xs);
+}
+
 .card {
   background: var(--colors-surface-card);
   border: 1px solid var(--colors-hairline);
