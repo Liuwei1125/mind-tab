@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
-import { NewTabPage } from './pages/NewTabPage';
-import { PopupPage } from './pages/PopupPage';
-import { OptionsPage } from './pages/OptionsPage';
+import NewTabPage from './pages/NewTabPage';
+import PopupPage from './pages/PopupPage';
+import OptionsPage from './pages/OptionsPage';
 
 function App() {
   useEffect(() => {
