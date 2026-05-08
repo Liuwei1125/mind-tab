@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, createContext, useContext } from 'react';
 import {
   Search,
   Plus,
@@ -27,6 +27,7 @@ import {
   CloudSnow,
   Wind,
   Clock,
+  Moon,
 } from 'lucide-react';
 
 interface Todo {
@@ -34,6 +35,35 @@ interface Todo {
   text: string;
   completed: boolean;
 }
+
+const ThemeContext = createContext<{
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
+}>({ theme: 'light', toggleTheme: () => {} });
+
+const useTheme = () => useContext(ThemeContext);
+
+const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
+  const [theme, setTheme] = useState<'light' | 'dark'>(() => {
+    const saved = localStorage.getItem('mindtab-theme');
+    return (saved as 'light' | 'dark') || 'light';
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('mindtab-theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
+
+  return (
+    <ThemeContext.Provider value={{ theme, toggleTheme }}>
+      {children}
+    </ThemeContext.Provider>
+  );
+};
 
 const useTodoStore = () => {
   const [todos, setTodos] = useState<Todo[]>(() => {
@@ -470,6 +500,7 @@ const RightColumn = () => {
 
 const SettingsPanel = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) => {
   const [activeTab, setActiveTab] = useState<'general' | 'widgets' | 'layout'>('general');
+  const { theme, toggleTheme } = useTheme();
 
   if (!isOpen) return null;
 
@@ -502,6 +533,20 @@ const SettingsPanel = ({ isOpen, onClose }: { isOpen: boolean; onClose: () => vo
         <div className="settings-content">
           {activeTab === 'general' && (
             <div className="settings-section">
+              <div className="settings-item">
+                <div className="settings-item-content">
+                  <span className="settings-item-label">主题模式</span>
+                  <span className="settings-item-desc">{theme === 'light' ? '浅色模式' : '深色模式'}</span>
+                </div>
+                <button 
+                  className={`theme-toggle-btn ${theme === 'dark' ? 'active' : ''}`}
+                  onClick={toggleTheme}
+                  aria-label="切换主题"
+                >
+                  <Sun size={16} className="theme-icon-light" />
+                  <Moon size={16} className="theme-icon-dark" />
+                </button>
+              </div>
               <div className="settings-field">
                 <label>AI 模型</label>
                 <select className="settings-input">
@@ -610,26 +655,28 @@ export default function NewTabPage() {
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
-    <div className="app-container">
-      <PeriodBadge />
-      <AIContextCard />
-      <AIDialogSection />
+    <ThemeProvider>
+      <div className="app-container">
+        <PeriodBadge />
+        <AIContextCard />
+        <AIDialogSection />
 
-      <div className="three-columns">
-        <LeftColumn />
-        <MiddleColumn />
-        <RightColumn />
+        <div className="three-columns">
+          <LeftColumn />
+          <MiddleColumn />
+          <RightColumn />
+        </div>
+
+        <QuickLinks />
+
+        <div className="settings-trigger">
+          <button onClick={() => setSettingsOpen(true)} className="btn btn-sm" aria-label="打开设置">
+            <Settings size={14} />
+          </button>
+        </div>
+
+        <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
       </div>
-
-      <QuickLinks />
-
-      <div className="settings-trigger">
-        <button onClick={() => setSettingsOpen(true)} className="btn btn-sm">
-          <Settings size={14} />
-        </button>
-      </div>
-
-      <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
-    </div>
+    </ThemeProvider>
   );
 }

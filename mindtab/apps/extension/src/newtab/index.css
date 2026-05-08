@@ -1,48 +1,97 @@
 :root {
+  /* Light Theme (Default) */
   --colors-primary: #cc785c;
   --colors-primary-active: #a9583e;
   --colors-primary-disabled: #e6dfd8;
   --colors-accent-teal: #5db8a6;
   --colors-accent-amber: #e8a55a;
+  
   --colors-canvas: #faf9f5;
   --colors-surface-soft: #f5f0e8;
   --colors-surface-card: #efe9de;
   --colors-surface-cream-strong: #e8e0d2;
-  --colors-surface-dark: #181715;
-  --colors-surface-dark-elevated: #252320;
-  --colors-surface-dark-soft: #1f1e1b;
+  
   --colors-hairline: #e6dfd8;
   --colors-hairline-soft: #ebe6df;
+  
   --colors-ink: #141413;
   --colors-body-strong: #252523;
   --colors-body: #3d3d3a;
   --colors-muted: #6c6a64;
   --colors-muted-soft: #8e8b82;
+  
   --colors-on-primary: #ffffff;
-  --colors-on-dark: #faf9f5;
-  --colors-on-dark-soft: #a09d96;
+  
   --colors-success: #5db872;
   --colors-warning: #d4a017;
   --colors-error: #c64545;
   
+  --shadow-sm: 0 1px 2px rgba(20, 20, 19, 0.04);
+  --shadow-md: 0 4px 12px rgba(20, 20, 19, 0.06);
+  --shadow-lg: 0 8px 24px rgba(20, 20, 19, 0.08);
+  
+  --bg-gradient-1: rgba(204, 120, 92, 0.06);
+  --bg-gradient-2: rgba(93, 184, 168, 0.04);
+  --bg-gradient-3: rgba(232, 165, 90, 0.03);
+}
+
+/* Dark Theme */
+[data-theme="dark"] {
+  --colors-primary: #e08c6f;
+  --colors-primary-active: #f0a080;
+  --colors-primary-disabled: #4a3f3a;
+  
+  --colors-accent-teal: #6dd5c2;
+  --colors-accent-amber: #f0b86a;
+  
+  --colors-canvas: #0f0f12;
+  --colors-surface-soft: #1a1a1f;
+  --colors-surface-card: #222228;
+  --colors-surface-cream-strong: #2a2a30;
+  
+  --colors-hairline: #333340;
+  --colors-hairline-soft: #2a2a32;
+  
+  --colors-ink: #f5f5f0;
+  --colors-body-strong: #e0e0dc;
+  --colors-body: #b0b0aa;
+  --colors-muted: #707070;
+  --colors-muted-soft: #555550;
+  
+  --colors-on-primary: #ffffff;
+  
+  --colors-success: #6dc882;
+  --colors-warning: #e4b027;
+  --colors-error: #d65555;
+  
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+  
+  --bg-gradient-1: rgba(224, 140, 111, 0.1);
+   --bg-gradient-2: rgba(109, 213, 194, 0.08);
+   --bg-gradient-3: rgba(240, 184, 106, 0.06);
+}
+
+:root, [data-theme="dark"] {
   --rounded-xs: 4px;
   --rounded-sm: 6px;
   --rounded-md: 8px;
   --rounded-lg: 12px;
   --rounded-xl: 16px;
   --rounded-pill: 9999px;
-  
+
   --spacing-xxs: 4px;
   --spacing-xs: 8px;
   --spacing-sm: 12px;
   --spacing-md: 16px;
   --spacing-lg: 24px;
   --spacing-xl: 32px;
-  
+
   --font-display: 'Cormorant Garamond', 'Tiempos Headline', Georgia, serif;
   --font-body: -apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', sans-serif;
   --font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
-  
+
   --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-normal: 300ms cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -67,6 +116,7 @@ body {
   background: var(--colors-canvas);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color var(--transition-normal), color var(--transition-normal);
 }
 
 #root {
@@ -120,13 +170,13 @@ h4 { font-size: 28px; letter-spacing: -0.3px; }
   border-radius: var(--rounded-lg);
   padding: var(--spacing-xl);
   transition: all var(--transition-normal);
-  box-shadow: 0 1px 3px rgba(20, 20, 19, 0.04);
+  box-shadow: var(--shadow-sm);
 }
 
 .card:hover {
   background: var(--colors-surface-cream-strong);
   border-color: var(--colors-hairline-soft);
-  box-shadow: 0 4px 12px rgba(20, 20, 19, 0.06);
+  box-shadow: var(--shadow-md);
   transform: translateY(-2px);
 }
 
@@ -1233,7 +1283,143 @@ h4 { font-size: 28px; letter-spacing: -0.3px; }
   justify-content: center;
 }
 
+/* Theme Toggle Button */
+.theme-toggle-btn {
+  width: 44px;
+  height: 24px;
+  padding: 2px;
+  background: var(--colors-surface-card);
+  border: 1px solid var(--colors-hairline);
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all var(--transition-fast);
+  position: relative;
+}
+
+.theme-toggle-btn::before {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  background: var(--colors-primary);
+  border-radius: 50%;
+  transition: transform var(--transition-fast);
+}
+
+.theme-toggle-btn.active::before {
+  transform: translateX(20px);
+}
+
+.theme-icon-light {
+  color: var(--colors-primary);
+  z-index: 1;
+}
+
+.theme-icon-dark {
+  color: var(--colors-muted);
+  z-index: 1;
+}
+
+.theme-toggle-btn.active .theme-icon-light {
+  color: var(--colors-muted);
+}
+
+.theme-toggle-btn.active .theme-icon-dark {
+  color: var(--colors-on-primary);
+}
+
+/* Settings Item Content */
+.settings-item-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-item-label {
+  font-size: 14px;
+  color: var(--colors-ink);
+  font-weight: 500;
+}
+
+.settings-item-desc {
+  font-size: 12px;
+  color: var(--colors-muted);
+}
+
+/* Sortable Widget */
+.sortable-widget-wrapper {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.drag-handle {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--colors-muted);
+  cursor: grab;
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  border-radius: var(--rounded-sm);
+}
+
+.drag-handle:hover {
+  background: var(--colors-surface-soft);
+  color: var(--colors-primary);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.sortable-widget-wrapper:hover .drag-handle {
+  opacity: 1;
+}
+
+[data-theme="dark"] .drag-handle {
+  color: var(--colors-muted);
+}
+
+[data-theme="dark"] .drag-handle:hover {
+  background: var(--colors-surface-soft);
+  color: var(--colors-primary);
+}
+
+/* Dark Theme Shadows */
+[data-theme="dark"] .settings-panel {
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.4);
+}
+
+[data-theme="dark"] .btn-primary {
+  box-shadow: 0 2px 8px rgba(224, 140, 111, 0.3);
+}
+
+[data-theme="dark"] .btn-primary:hover {
+  box-shadow: 0 4px 16px rgba(224, 140, 111, 0.4);
+}
+
+[data-theme="dark"] .period-badge {
+  box-shadow: 0 2px 8px rgba(224, 140, 111, 0.2);
+}
+
+[data-theme="dark"] .dialog-input:focus {
+  box-shadow: 
+    0 0 0 3px rgba(224, 140, 111, 0.15),
+    0 2px 8px rgba(224, 140, 111, 0.15);
+}
+
 select option {
-  background: var(--colors-surface-dark);
-  color: var(--colors-on-dark);
+  background: var(--colors-canvas);
+  color: var(--colors-ink);
 }
