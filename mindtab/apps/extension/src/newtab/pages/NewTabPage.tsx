@@ -1,6 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  rectSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
 
 interface TodoItem {
   id: string;
@@ -14,6 +30,7 @@ interface TodoStore {
   addTodo: (text: string) => void;
   toggleTodo: (id: string) => void;
   deleteTodo: (id: string) => void;
+  editTodo: (id: string, text: string) => void;
   clearCompleted: () => void;
 }
 
@@ -42,6 +59,13 @@ const useTodoStore = create<TodoStore>()(
           todos: state.todos.filter((todo) => todo.id !== id),
         }));
       },
+      editTodo: (id, text) => {
+        set((state) => ({
+          todos: state.todos.map((todo) =>
+            todo.id === id ? { ...todo, text } : todo
+          ),
+        }));
+      },
       clearCompleted: () => {
         set((state) => ({
           todos: state.todos.filter((todo) => !todo.completed),
@@ -55,122 +79,373 @@ const useTodoStore = create<TodoStore>()(
   )
 );
 
-interface PomodoroStore {
-  isRunning: boolean;
-  minutes: number;
-  seconds: number;
-  cycles: number;
-  mode: 'work' | 'break';
-  start: () => void;
-  pause: () => void;
-  reset: () => void;
-}
-
-const usePomodoroStore = create<PomodoroStore>((set, get) => ({
-  isRunning: false,
-  minutes: 25,
-  seconds: 0,
-  cycles: 0,
-  mode: 'work',
-  start: () => {
-    set({ isRunning: true });
-    const interval = setInterval(() => {
-      const { minutes, seconds, isRunning, mode } = get();
-      if (!isRunning) {
-        clearInterval(interval);
-        return;
-      }
-      if (seconds === 0) {
-        if (minutes === 0) {
-          if (mode === 'work') {
-            set({ mode: 'break', minutes: 5, seconds: 0, cycles: get().cycles + 1 });
-          } else {
-            set({ mode: 'work', minutes: 25, seconds: 0 });
-          }
-        } else {
-          set({ minutes: minutes - 1, seconds: 59 });
-        }
-      } else {
-        set({ seconds: seconds - 1 });
-      }
-    }, 1000);
-  },
-  pause: () => set({ isRunning: false }),
-  reset: () => set({ isRunning: false, minutes: 25, seconds: 0, mode: 'work' }),
-}));
-
-interface CalendarEvent {
+interface NoteItem {
   id: string;
-  title: string;
-  time: string;
+  content: string;
+  createdAt: number;
+  updatedAt: number;
 }
 
-const mockCalendarEvents: CalendarEvent[] = [
-  { id: '1', title: '产品评审会', time: '10:00' },
-  { id: '2', title: '代码审查', time: '14:00' },
-  { id: '3', title: '团队周会', time: '16:30' },
-];
+interface NoteStore {
+  notes: NoteItem[];
+  addNote: (content: string) => void;
+  updateNote: (id: string, content: string) => void;
+  deleteNote: (id: string) => void;
+  clearAll: () => void;
+}
 
-const mockMemoryItems = [
-  { id: '1', title: 'React 官方文档 - useState & useReducer', source: 'react.dev', summary: '详细对比了 useState 和 useReducer 的适用场景' },
-  { id: '2', title: 'Zustand vs Jotai vs Redux Toolkit - 2024 对比', source: 'dev.to', summary: '从包体积、API 简洁度和性能三个维度对比' },
-  { id: '3', title: 'How to share state between components in React', source: 'stackoverflow.com', summary: '高赞回答讨论了 Context API、状态提升和第三方库方案' },
-];
-
-const quickLinks = [
-  { id: 'gh', label: 'GH', href: 'https://github.com', bgColor: 'bg-zinc-700' },
-  { id: 'yt', label: 'YT', href: 'https://youtube.com', bgColor: 'bg-red-600' },
-  { id: 'tw', label: 'TW', href: 'https://twitter.com', bgColor: 'bg-sky-500' },
-  { id: 'gm', label: 'GM', href: 'https://gmail.com', bgColor: 'bg-red-500' },
-  { id: 'nn', label: 'NN', href: 'https://notion.so', bgColor: 'bg-neutral-800' },
-  { id: 'cg', label: 'CG', href: 'https://calendar.google.com', bgColor: 'bg-blue-600' },
-];
+const useNoteStore = create<NoteStore>()(
+  persist(
+    (set) => ({
+      notes: [],
+      addNote: (content) => {
+        const newNote: NoteItem = {
+          id: `note-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          content,
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        set((state) => ({ notes: [newNote, ...state.notes] }));
+      },
+      updateNote: (id, content) => {
+        set((state) => ({
+          notes: state.notes.map((note) =>
+            note.id === id ? { ...note, content, updatedAt: Date.now() } : note
+          ),
+        }));
+      },
+      deleteNote: (id) => {
+        set((state) => ({
+          notes: state.notes.filter((note) => note.id !== id),
+        }));
+      },
+      clearAll: () => {
+        set({ notes: [] });
+      },
+    }),
+    {
+      name: 'mindtab-notes',
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+);
 
 export function NewTabPage() {
-  const [showSettings, setShowSettings] = useState(false);
-  const [aiQuery, setAiQuery] = useState('');
-  const [selectedModel, setSelectedModel] = useState('claude');
-
-  const models = [
-    { value: 'claude', label: 'Claude 3.5' },
-    { value: 'gpt-4', label: 'GPT-4o' },
-    { value: 'gpt-3.5', label: 'GPT-3.5' },
-  ];
-
   return (
-    <div className="h-screen w-screen bg-neutral-950 text-neutral-50 font-sans overflow-hidden">
-      <Header onSettingsClick={() => setShowSettings(true)} />
-      
-      <div className="flex-1 overflow-auto">
-        <MemoryCard />
-        
-        <AIInput 
-          query={aiQuery}
-          setQuery={setAiQuery}
-          selectedModel={selectedModel}
-          setSelectedModel={setSelectedModel}
-          models={models}
-        />
-        
-        <div className="max-w-7xl mx-auto px-6 pb-20 mt-6">
-          <div className="grid grid-cols-3 gap-6">
-            <LeftColumn />
-            <MiddleColumn />
-            <RightColumn />
-          </div>
-        </div>
+    <div className="h-screen w-screen bg-canvas flex flex-col overflow-hidden">
+      <TopNav />
+      <div className="flex flex-1 overflow-hidden">
+        <LeftSidebar />
+        <MainContent />
+        <RightPanel />
       </div>
-
-      <BottomBar />
-
-      {showSettings && (
-        <SettingsPanel onClose={() => setShowSettings(false)} />
-      )}
     </div>
   );
 }
 
-function Header({ onSettingsClick }) {
+function TopNav() {
+  return (
+    <header className="h-14 px-6 flex items-center justify-between border-b border-hairline bg-canvas/80 backdrop-blur-sm sticky top-0 z-50">
+      <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 bg-primary rounded-md flex items-center justify-center">
+            <span className="text-on-primary text-xs font-bold">M</span>
+          </div>
+          <span className="font-serif text-xl text-ink tracking-tight">MindTab</span>
+        </div>
+      </div>
+
+      <div className="flex-1 max-w-md mx-8">
+        <div className="relative">
+          <svg
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-soft"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <circle cx="11" cy="11" r="8" />
+            <path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            type="search"
+            placeholder="搜索..."
+            className="w-full h-8 pl-10 pr-4 bg-surface-card text-sm rounded-full border border-hairline focus:outline-none focus:border-primary"
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        <button className="w-8 h-8 rounded flex items-center justify-center text-muted-soft hover:text-ink hover:bg-surface-soft transition-colors">
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </button>
+        <button className="w-8 h-8 rounded flex items-center justify-center text-muted-soft hover:text-ink hover:bg-surface-soft transition-colors">
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+          </svg>
+        </button>
+        <button className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-primary">
+          <span className="text-xs font-medium">M</span>
+        </button>
+      </div>
+    </header>
+  );
+}
+
+function LeftSidebar() {
+  const [activeItem, setActiveItem] = useState('home');
+
+  const menuItems = [
+    { id: 'home', icon: 'home', label: '主页' },
+    { id: 'memory', icon: 'brain', label: '记忆' },
+    { id: 'search', icon: 'search', label: '搜索' },
+    { id: 'settings', icon: 'settings', label: '设置' },
+  ];
+
+  return (
+    <aside className="w-16 border-r border-hairline p-2 flex flex-col">
+      {menuItems.map((item) => (
+        <button
+          key={item.id}
+          onClick={() => setActiveItem(item.id)}
+          className={`w-full aspect-square rounded-lg flex flex-col items-center justify-center gap-1 transition-colors ${
+            activeItem === item.id
+              ? 'bg-primary/10 text-primary'
+              : 'text-muted-soft hover:text-ink hover:bg-surface-soft'
+          }`}
+        >
+          <Icon icon={item.icon} />
+          <span className="text-[10px]">{item.label}</span>
+        </button>
+      ))}
+    </aside>
+  );
+}
+
+function Icon({ icon }: { icon: string }) {
+  switch (icon) {
+    case 'home':
+      return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></svg>;
+    case 'brain':
+      return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 4.5a2.5 2.5 0 0 0-4.96-.46 2.5 2.5 0 0 0-1.98 3 2.5 2.5 0 0 0 1.45 4.01 2.5 2.5 0 0 0-1.32 4.23 2.5 2.5 0 0 0 3.59 2.01 2.5 2.5 0 0 0 2.96-.46 2.5 2.5 0 0 0 2.96.46 2.5 2.5 0 0 0 3.59-2.01 2.5 2.5 0 0 0-1.32-4.23 2.5 2.5 0 0 0 1.98-3A2.5 2.5 0 0 0 16.96 4.04 2.5 2.5 0 0 0 12 4.5z" /></svg>;
+    case 'search':
+      return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>;
+    case 'settings':
+      return <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" /></svg>;
+    default:
+      return null;
+  }
+}
+
+function MainContent() {
+  return (
+    <main className="flex-1 overflow-auto p-6">
+      <WidgetCanvas />
+    </main>
+  );
+}
+
+interface WidgetLayoutItem {
+  id: string;
+  type: string;
+  title: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+}
+
+interface WidgetLayoutStore {
+  widgets: WidgetLayoutItem[];
+  isEditMode: boolean;
+  toggleEditMode: () => void;
+  reorderWidgets: (activeId: string, overId: string) => void;
+  setWidgets: (widgets: WidgetLayoutItem[]) => void;
+}
+
+const useWidgetLayoutStore = create<WidgetLayoutStore>()(
+  persist(
+    (set) => ({
+      widgets: [
+        { id: '1', type: 'clock', title: '时钟', x: 0, y: 0, w: 1, h: 1 },
+        { id: '2', type: 'weather', title: '天气', x: 1, y: 0, w: 1, h: 1 },
+        { id: '3', type: 'todo', title: '待办', x: 2, y: 0, w: 1, h: 2 },
+        { id: '4', type: 'search', title: '搜索', x: 0, y: 1, w: 2, h: 1 },
+        { id: '5', type: 'quick-note', title: '快捷笔记', x: 0, y: 2, w: 2, h: 2 },
+        { id: '6', type: 'ai-chat', title: 'AI 助手', x: 2, y: 2, w: 1, h: 2 },
+      ],
+      isEditMode: false,
+      toggleEditMode: () => set((state) => ({ isEditMode: !state.isEditMode })),
+      reorderWidgets: (activeId, overId) => {
+        set((state) => {
+          const oldIndex = state.widgets.findIndex((w) => w.id === activeId);
+          const newIndex = state.widgets.findIndex((w) => w.id === overId);
+          if (oldIndex !== -1 && newIndex !== -1) {
+            return {
+              widgets: arrayMove(state.widgets, oldIndex, newIndex),
+            };
+          }
+          return state;
+        });
+      },
+      setWidgets: (widgets) => set({ widgets }),
+    }),
+    {
+      name: 'mindtab-widget-layout',
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+);
+
+function WidgetCanvas() {
+  const { widgets, isEditMode, toggleEditMode, reorderWidgets } = useWidgetLayoutStore();
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    if (over && active.id !== over.id) {
+      reorderWidgets(active.id as string, over.id as string);
+    }
+  };
+
+  const widgetIds = widgets.map((w) => w.id);
+
+  return (
+    <div className="h-full">
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="font-serif text-2xl text-ink">我的工作台</h2>
+        <button
+          onClick={toggleEditMode}
+          className={`text-sm px-3 py-1 rounded-md transition-colors ${
+            isEditMode
+              ? 'bg-primary text-on-primary'
+              : 'text-muted hover:text-primary hover:bg-surface-soft'
+          }`}
+        >
+          {isEditMode ? '完成编辑' : '编辑布局'}
+        </button>
+      </div>
+
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragEnd={handleDragEnd}
+      >
+        <SortableContext items={widgetIds} strategy={rectSortingStrategy}>
+          <div
+            className="grid grid-cols-3 gap-4"
+            style={{ gridAutoRows: 'minmax(180px, auto)' }}
+          >
+            {widgets.map((widget) => (
+              <SortableWidgetCard
+                key={widget.id}
+                widget={widget}
+                isEditMode={isEditMode}
+              />
+            ))}
+          </div>
+        </SortableContext>
+      </DndContext>
+    </div>
+  );
+}
+
+interface WidgetCardProps {
+  widget: {
+    id: string;
+    type: string;
+    title: string;
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  };
+  isEditMode?: boolean;
+}
+
+function SortableWidgetCard({ widget, isEditMode }: WidgetCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: widget.id });
+
+  const style = {
+    transform: transform ? `translate3d(${transform.x}px, ${transform.y}px, 0)` : undefined,
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 1000 : 'auto',
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`bg-surface-card rounded-lg p-4 border transition-all cursor-default ${
+        widget.h > 1 ? 'row-span-2' : ''
+      } ${widget.w > 1 ? 'col-span-2' : ''} ${
+        isEditMode
+          ? 'border-dashed border-primary/50 cursor-grab active:cursor-grabbing hover:border-primary hover:shadow-md'
+          : 'border-hairline/50 hover:shadow-card'
+      }`}
+      {...(isEditMode ? { ...attributes, ...listeners } : {})}
+    >
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="text-sm font-medium text-muted">{widget.title}</h3>
+        {isEditMode && (
+          <div className="flex items-center gap-1">
+            <svg className="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="9" cy="5" r="1" fill="currentColor" />
+              <circle cx="9" cy="12" r="1" fill="currentColor" />
+              <circle cx="9" cy="19" r="1" fill="currentColor" />
+              <circle cx="15" cy="5" r="1" fill="currentColor" />
+              <circle cx="15" cy="12" r="1" fill="currentColor" />
+              <circle cx="15" cy="19" r="1" fill="currentColor" />
+            </svg>
+          </div>
+        )}
+      </div>
+
+      <WidgetContent type={widget.type} />
+    </div>
+  );
+}
+
+function WidgetContent({ type }: { type: string }) {
+  switch (type) {
+    case 'clock':
+      return <ClockWidget />;
+    case 'weather':
+      return <WeatherWidget />;
+    case 'todo':
+      return <TodoWidget />;
+    case 'search':
+      return <SearchWidget />;
+    case 'quick-note':
+      return <QuickNoteWidget />;
+    case 'ai-chat':
+      return <AIChatWidget />;
+    default:
+      return <div className="text-muted-soft text-sm">组件加载中...</div>;
+  }
+}
+
+function ClockWidget() {
   const [time, setTime] = useState(new Date());
 
   useEffect(() => {
@@ -179,283 +454,161 @@ function Header({ onSettingsClick }) {
   }, []);
 
   return (
-    <header className="h-14 px-6 flex items-center justify-between border-b border-neutral-800 bg-neutral-950">
-      <div className="flex items-center gap-5">
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-600 rounded-lg flex items-center justify-center">
-            <svg className="w-4 h-4 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4M12 8h.01" />
-            </svg>
-          </div>
-          <span className="font-semibold text-white tracking-tight">MindTab</span>
-        </div>
-        
-        <div className="h-6 w-px bg-neutral-800"></div>
-        
-        <div className="flex items-center gap-3">
-          <span className="text-sm text-neutral-400">工作空间</span>
-          <div className="px-2.5 py-1 bg-amber-500/10 border border-amber-500/20 rounded-full flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span>
-            <span className="text-xs text-amber-500 font-medium">下午专注模式</span>
-          </div>
-        </div>
+    <div className="text-center">
+      <div className="font-serif text-4xl text-ink font-light">
+        {time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
       </div>
-
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-3">
-          <div className="text-right">
-            <div className="text-sm font-medium text-neutral-200">
-              {time.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
-            </div>
-            <div className="text-xs text-neutral-500">
-              {time.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric', weekday: 'short' })}
-            </div>
-          </div>
-        </div>
-        
-        <div className="h-6 w-px bg-neutral-800"></div>
-        
-        <button 
-          onClick={onSettingsClick}
-          className="w-9 h-9 rounded-lg hover:bg-neutral-800 flex items-center justify-center transition-colors"
-        >
-          <svg className="w-4 h-4 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
-          </svg>
-        </button>
-      </div>
-    </header>
-  );
-}
-
-function MemoryCard() {
-  return (
-    <div className="max-w-4xl mx-auto px-6 mt-6">
-      <div className="bg-neutral-900 rounded-2xl border border-neutral-800 p-6">
-        <div className="flex items-start justify-between mb-5">
-          <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-gradient-to-br from-amber-500 to-orange-600 rounded-xl flex items-center justify-center">
-              <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-              </svg>
-            </div>
-            <div>
-              <div className="font-semibold text-white mb-0.5">工作记忆</div>
-              <div className="text-sm text-neutral-500">你今天在研究 React 状态管理，我整理了相关资源</div>
-            </div>
-          </div>
-          <span className="text-xs text-neutral-600">5 分钟前更新</span>
-        </div>
-
-        <div className="space-y-3 mb-5">
-          <div className="flex items-center gap-3 text-sm text-neutral-300">
-            <span className="w-6 h-6 bg-green-500/20 text-green-400 rounded-md flex items-center justify-center text-xs font-medium">✓</span>
-            <span>3 个相关页面摘要</span>
-            <span className="text-neutral-600">·</span>
-            <span className="text-neutral-500">React 官方文档、MDN</span>
-          </div>
-          <div className="flex items-center gap-3 text-sm text-neutral-300">
-            <span className="w-6 h-6 bg-amber-500/20 text-amber-400 rounded-md flex items-center justify-center text-xs font-medium">↗</span>
-            <span>2 个社区解决方案</span>
-            <span className="text-neutral-600">·</span>
-            <span className="text-neutral-500">Stack Overflow</span>
-          </div>
-          <div className="flex items-center gap-3 text-sm text-neutral-300">
-            <span className="w-6 h-6 bg-blue-500/20 text-blue-400 rounded-md flex items-center justify-center text-xs font-medium">📄</span>
-            <span>1 篇推荐深度文章</span>
-            <span className="text-neutral-600">·</span>
-            <span className="text-neutral-500">技术博客</span>
-          </div>
-        </div>
-
-        <div className="flex gap-3">
-          <button className="px-4 py-2 bg-amber-500 hover:bg-amber-600 rounded-lg text-sm font-medium text-white transition-colors">
-            查看详情
-          </button>
-          <button className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-sm text-neutral-300 transition-colors">
-            忽略
-          </button>
-        </div>
+      <div className="text-sm text-muted mt-1">
+        {time.toLocaleDateString('zh-CN', { weekday: 'long', month: 'long', day: 'numeric' })}
       </div>
     </div>
   );
 }
 
-function AIInput({ query, setQuery, selectedModel, setSelectedModel, models }) {
-  const [showQuickActions, setShowQuickActions] = useState(false);
+interface WeatherData {
+  temperature: number;
+  weathercode: number;
+  isDay: boolean;
+  city: string;
+}
 
-  const quickActions = [
-    '总结今天的研究',
-    '下一步建议',
-    '整理标签页',
-    '推荐资源',
-  ];
+interface WeatherStore {
+  weather: WeatherData | null;
+  isLoading: boolean;
+  error: string | null;
+  lastUpdated: number | null;
+  fetchWeather: () => Promise<void>;
+}
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (query.trim()) {
-      console.log('AI Query:', query);
-      setShowQuickActions(false);
+const useWeatherStore = create<WeatherStore>((set, get) => ({
+  weather: null,
+  isLoading: false,
+  error: null,
+  lastUpdated: null,
+  fetchWeather: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const position = await new Promise<{ lat: number; lon: number }>((resolve) => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+          () => resolve({ lat: 39.9042, lon: 116.4074 })
+        );
+      });
+
+      const response = await fetch(
+        `https://api.open-meteo.com/v1/forecast?latitude=${position.lat}&longitude=${position.lon}&current=temperature_2m,is_day,weather_code&timezone=auto`
+      );
+      const data = await response.json();
+
+      const cityResponse = await fetch(
+        `https://nominatim.openstreetmap.org/reverse?lat=${position.lat}&lon=${position.lon}&format=json`
+      ).catch(() => null);
+      const cityData = cityResponse ? await cityResponse.json() : null;
+      const city = cityData?.address?.city || cityData?.address?.town || cityData?.address?.village || '未知';
+
+      set({
+        weather: {
+          temperature: Math.round(data.current.temperature_2m),
+          weathercode: data.current.weather_code,
+          isDay: data.current.is_day === 1,
+          city,
+        },
+        lastUpdated: Date.now(),
+        isLoading: false,
+      });
+    } catch {
+      set({ error: '获取天气失败', isLoading: false });
     }
+  },
+}));
+
+function getWeatherEmoji(code: number, isDay: boolean): string {
+  if (code === 0) return isDay ? '☀️' : '🌙';
+  if (code <= 3) return isDay ? '⛅' : '☁️';
+  if (code <= 48) return '🌫️';
+  if (code <= 57) return '🌧️';
+  if (code <= 67) return '🌨️';
+  if (code <= 77) return '❄️';
+  if (code <= 82) return '🌧️';
+  if (code <= 86) return '🌨️';
+  if (code >= 95) return '⛈️';
+  return '🌤️';
+}
+
+function getWeatherText(code: number): string {
+  if (code === 0) return '晴';
+  if (code <= 3) return '多云';
+  if (code <= 48) return '雾';
+  if (code <= 57) return '毛毛雨';
+  if (code <= 67) return '降雨';
+  if (code <= 77) return '降雪';
+  if (code <= 82) return '阵雨';
+  if (code <= 86) return '大雪';
+  if (code >= 95) return '雷暴';
+  return '阴';
+}
+
+function WeatherWidget() {
+  const { weather, isLoading, error, lastUpdated, fetchWeather } = useWeatherStore();
+
+  useEffect(() => {
+    fetchWeather();
+    const interval = setInterval(fetchWeather, 30 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const formatUpdateTime = (timestamp: number) => {
+    const date = new Date(timestamp);
+    return `更新于 ${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}`;
   };
 
-  return (
-    <div className="max-w-3xl mx-auto px-6 mt-6 relative">
-      <div className="text-center text-xs text-neutral-500 mb-3">
-        AI 已理解你的工作上下文 · React 状态管理
+  if (isLoading && !weather) {
+    return (
+      <div className="text-center py-4">
+        <div className="animate-pulse">
+          <div className="h-10 w-10 bg-surface-soft rounded-full mx-auto mb-2"></div>
+          <div className="h-8 w-16 bg-surface-soft rounded mx-auto mb-1"></div>
+          <div className="h-4 w-20 bg-surface-soft rounded mx-auto"></div>
+        </div>
       </div>
-      
-      <form onSubmit={handleSubmit}>
-        <div className="flex items-center bg-neutral-900 rounded-2xl border border-neutral-800 hover:border-neutral-700 transition-colors overflow-hidden">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onFocus={() => setShowQuickActions(true)}
-            onBlur={() => setTimeout(() => setShowQuickActions(false), 200)}
-            placeholder="问我任何问题，或输入指令..."
-            className="flex-1 px-5 py-4 bg-transparent text-white placeholder-neutral-500 focus:outline-none"
-          />
-          
-          <select
-            value={selectedModel}
-            onChange={(e) => setSelectedModel(e.target.value)}
-            className="px-4 py-4 bg-neutral-800 text-white text-sm border-l border-neutral-700 focus:outline-none cursor-pointer hover:bg-neutral-700 transition-colors"
-          >
-            {models.map((model) => (
-              <option key={model.value} value={model.value} className="bg-neutral-900">
-                {model.label}
-              </option>
-            ))}
-          </select>
-          
-          <button
-            type="submit"
-            disabled={!query.trim()}
-            className="w-14 h-14 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
-          >
-            <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <line x1="22" y1="2" x2="11" y2="13" />
-              <polygon points="22 2 15 22 11 13 2 9" />
-            </svg>
-          </button>
-        </div>
-      </form>
+    );
+  }
 
-      {showQuickActions && !query && (
-        <div className="absolute top-full left-0 right-0 mt-2 bg-neutral-900 rounded-xl border border-neutral-800 shadow-2xl z-50">
-          <div className="p-2">
-            <div className="text-xs text-neutral-500 px-3 py-2">快捷指令</div>
-            <div className="flex flex-wrap gap-2">
-              {quickActions.map((action, index) => (
-                <button
-                  key={index}
-                  onClick={() => {
-                    setQuery(action);
-                    setShowQuickActions(false);
-                  }}
-                  className="px-4 py-2 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-sm text-neutral-300 transition-colors"
-                >
-                  {action}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
+  if (error && !weather) {
+    return (
+      <div className="text-center">
+        <div className="text-2xl mb-2">🌧️</div>
+        <div className="text-sm text-muted">{error}</div>
+        <button
+          onClick={fetchWeather}
+          className="mt-2 text-xs text-primary hover:underline"
+        >
+          重试
+        </button>
+      </div>
+    );
+  }
+
+  if (!weather) return null;
+
+  return (
+    <div className="text-center">
+      <div className="text-5xl mb-2">{getWeatherEmoji(weather.weathercode, weather.isDay)}</div>
+      <div className="font-serif text-3xl text-ink">{weather.temperature}°C</div>
+      <div className="text-sm text-muted mt-1">{getWeatherText(weather.weathercode)} · {weather.city}</div>
+      {lastUpdated && (
+        <div className="text-xs text-muted-soft mt-2">{formatUpdateTime(lastUpdated)}</div>
       )}
     </div>
   );
 }
 
-function LeftColumn() {
-  return (
-    <div className="space-y-6">
-      <CalendarCard />
-      <MemoryDetailsCard />
-    </div>
-  );
-}
-
-function CalendarCard() {
-  const [date] = useState(new Date());
-
-  return (
-    <div className="bg-neutral-900 rounded-2xl border border-neutral-800 p-6">
-      <div className="text-center mb-6">
-        <div className="text-5xl font-bold text-white mb-1">
-          {date.getDate()}
-        </div>
-        <div className="text-amber-500 text-sm font-medium">
-          {['周日', '周一', '周二', '周三', '周四', '周五', '周六'][date.getDay()]}
-        </div>
-        <div className="text-neutral-500 text-xs mt-1">
-          {date.getFullYear()} 年 {date.getMonth() + 1} 月
-        </div>
-      </div>
-
-      <div className="space-y-3">
-        <div className="text-xs text-neutral-500 uppercase tracking-wider px-1 mb-3">今日安排</div>
-        {mockCalendarEvents.map((event) => (
-          <div key={event.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-neutral-800/50 transition-colors">
-            <div className="text-xs text-amber-500 font-medium w-12">{event.time}</div>
-            <div className="flex-1 text-sm text-neutral-300">{event.title}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-5 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl">
-        <div className="text-xs text-amber-400 flex items-center gap-2">
-          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-          </svg>
-          <span>收藏了一篇关于 React 的文章</span>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function MemoryDetailsCard() {
-  return (
-    <div className="bg-neutral-900 rounded-2xl border border-neutral-800 p-6">
-      <div className="flex items-center gap-2 mb-5">
-        <svg className="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
-        </svg>
-        <span className="text-sm font-medium text-white">记忆详情</span>
-      </div>
-
-      <div className="space-y-3">
-        {mockMemoryItems.map((item) => (
-          <div key={item.id} className="p-3 bg-neutral-800/50 rounded-xl hover:bg-neutral-800 transition-colors cursor-pointer">
-            <div className="flex items-start justify-between gap-2 mb-1">
-              <div className="text-sm text-neutral-200 font-medium leading-tight">{item.title}</div>
-              <span className="text-xs text-neutral-500 shrink-0">{item.source}</span>
-            </div>
-            <div className="text-xs text-neutral-500 leading-relaxed">{item.summary}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function MiddleColumn() {
-  return (
-    <div className="space-y-6">
-      <TodoCard />
-      <PomodoroCard />
-    </div>
-  );
-}
-
-function TodoCard() {
-  const { todos, addTodo, toggleTodo, deleteTodo } = useTodoStore();
+function TodoWidget() {
+  const { todos, addTodo, toggleTodo, deleteTodo, clearCompleted } = useTodoStore();
   const [inputValue, setInputValue] = useState('');
+  const [showAll, setShowAll] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (inputValue.trim()) {
       addTodo(inputValue.trim());
@@ -464,398 +617,645 @@ function TodoCard() {
   };
 
   const completedCount = todos.filter(t => t.completed).length;
-  const totalCount = todos.length;
+  const uncompletedCount = todos.length - completedCount;
+
+  const displayTodos = showAll ? todos : todos.filter(t => !t.completed);
 
   return (
-    <div className="bg-neutral-900 rounded-2xl border border-neutral-800 p-6">
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-2">
-          <svg className="w-4 h-4 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="9 11 12 14 22 4" />
-            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
-          </svg>
-          <span className="text-sm font-medium text-white">待办事项</span>
-        </div>
-        {totalCount > 0 && (
-          <span className="text-xs text-neutral-500">{completedCount}/{totalCount}</span>
-        )}
-      </div>
-
-      <div className="space-y-2 mb-5">
-        {todos.slice(0, 5).map((todo) => (
-          <div key={todo.id} className="group flex items-center gap-3 p-2 rounded-lg hover:bg-neutral-800/50 transition-colors">
-            <button
-              onClick={() => toggleTodo(todo.id)}
-              className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-all ${
-                todo.completed 
-                  ? 'bg-green-500 border-green-500' 
-                  : 'border-neutral-600 hover:border-green-500'
-              }`}
-            >
-              {todo.completed && (
-                <svg className="w-3 h-3 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              )}
-            </button>
-            <span className={`flex-1 text-sm ${todo.completed ? 'text-neutral-500 line-through' : 'text-neutral-300'}`}>
-              {todo.text}
-            </span>
-            <button
-              onClick={() => deleteTodo(todo.id)}
-              className="opacity-0 group-hover:opacity-100 w-6 h-6 flex items-center justify-center text-neutral-500 hover:text-red-400 transition-all"
-            >
-              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="18" y1="6" x2="6" y2="18" />
-                <line x1="6" y1="6" x2="18" y2="18" />
-              </svg>
-            </button>
-          </div>
-        ))}
-        {todos.length === 0 && (
-          <div className="text-center py-6 text-sm text-neutral-500">暂无待办事项</div>
-        )}
-      </div>
-
-      <form onSubmit={handleSubmit} className="flex gap-2">
+    <div className="flex flex-col h-full">
+      <form onSubmit={handleSubmit} className="mb-3">
         <input
           type="text"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          placeholder="添加新待办..."
-          className="flex-1 px-3 py-2.5 bg-neutral-800 border border-neutral-700 rounded-lg text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-amber-500 transition-colors"
+          placeholder="添加新任务..."
+          className="w-full h-8 px-3 text-sm bg-canvas border border-hairline rounded-lg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              handleSubmit(e);
+            }
+          }}
+        />
+      </form>
+
+      <div className="flex-1 overflow-auto space-y-1.5">
+        {displayTodos.length === 0 ? (
+          <div className="text-center text-muted-soft text-sm py-4">
+            {showAll ? '暂无任务' : '所有任务已完成！'}
+          </div>
+        ) : (
+          displayTodos.map((todo) => (
+            <div
+              key={todo.id}
+              className="group flex items-start gap-2 p-2 rounded-md hover:bg-surface-soft/50 transition-colors"
+            >
+              <button
+                onClick={() => toggleTodo(todo.id)}
+                className={`mt-0.5 w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${
+                  todo.completed
+                    ? 'bg-primary border-primary'
+                    : 'border-hairline hover:border-primary'
+                }`}
+              >
+                {todo.completed && (
+                  <svg className="w-3 h-3 text-on-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                    <polyline points="20 6 9 17 4 12" />
+                  </svg>
+                )}
+              </button>
+              <span className={`flex-1 text-sm break-words ${
+                todo.completed ? 'text-muted-soft line-through' : 'text-body'
+              }`}>
+                {todo.text}
+              </span>
+              <button
+                onClick={() => deleteTodo(todo.id)}
+                className="opacity-0 group-hover:opacity-100 w-5 h-5 rounded flex items-center justify-center text-muted-soft hover:text-red-500 hover:bg-red-50 transition-all"
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+          ))
+        )}
+      </div>
+
+      {todos.length > 0 && (
+        <div className="mt-3 pt-2 border-t border-hairline/50 flex items-center justify-between text-xs text-muted-soft">
+          <div className="flex gap-2">
+            <button
+              onClick={() => setShowAll(false)}
+              className={`px-2 py-0.5 rounded ${!showAll ? 'bg-primary/10 text-primary' : 'hover:bg-surface-soft'}`}
+            >
+              未完成 ({uncompletedCount})
+            </button>
+            <button
+              onClick={() => setShowAll(true)}
+              className={`px-2 py-0.5 rounded ${showAll ? 'bg-primary/10 text-primary' : 'hover:bg-surface-soft'}`}
+            >
+              全部 ({todos.length})
+            </button>
+          </div>
+          {completedCount > 0 && (
+            <button
+              onClick={clearCompleted}
+              className="text-muted hover:text-red-500 transition-colors"
+            >
+              清除已完成
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SearchWidget() {
+  const [query, setQuery] = useState('');
+  const [selectedEngine, setSelectedEngine] = useState('google');
+  const [isFocused, setIsFocused] = useState(false);
+
+  const searchEngines = {
+    google: { name: 'Google', icon: '🔍', url: 'https://www.google.com/search?q=' },
+    bing: { name: 'Bing', icon: '🌐', url: 'https://www.bing.com/search?q=' },
+    baidu: { name: '百度', icon: '🌏', url: 'https://www.baidu.com/s?wd=' },
+    github: { name: 'GitHub', icon: '🐙', url: 'https://github.com/search?q=' },
+  };
+
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (query.trim()) {
+      const engine = searchEngines[selectedEngine as keyof typeof searchEngines];
+      window.open(`${engine.url}${encodeURIComponent(query)}`, '_blank');
+    }
+  };
+
+  const quickSuggestions = [
+    'JavaScript 教程',
+    'React Hooks',
+    'TypeScript 入门',
+  ];
+
+  return (
+    <div className="relative">
+      <form onSubmit={handleSearch} className="relative">
+        <svg
+          className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-soft"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+        >
+          <circle cx="11" cy="11" r="8" />
+          <path d="m21 21-4.3-4.3" />
+        </svg>
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onFocus={() => setIsFocused(true)}
+          onBlur={() => setTimeout(() => setIsFocused(false), 200)}
+          placeholder="搜索或选择引擎..."
+          className="w-full h-9 pl-10 pr-20 bg-canvas text-sm rounded-full border border-hairline focus:outline-none focus:border-primary transition-colors"
+        />
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1">
+          <select
+            value={selectedEngine}
+            onChange={(e) => setSelectedEngine(e.target.value)}
+            className="h-6 px-1 text-xs bg-transparent border-none text-muted focus:outline-none cursor-pointer"
+          >
+            {Object.entries(searchEngines).map(([key, engine]) => (
+              <option key={key} value={key}>
+                {engine.icon}
+              </option>
+            ))}
+          </select>
+          <button
+            type="submit"
+            className="w-6 h-6 flex items-center justify-center bg-primary/10 text-primary rounded-full hover:bg-primary hover:text-on-primary transition-colors"
+          >
+            <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="5" y1="12" x2="19" y2="12" />
+              <polyline points="12 5 19 12 12 19" />
+            </svg>
+          </button>
+        </div>
+      </form>
+
+      {isFocused && !query && (
+        <div className="absolute top-full left-0 right-0 mt-2 bg-surface-card border border-hairline rounded-lg shadow-lg z-50 overflow-hidden">
+          <div className="px-3 py-2 text-xs text-muted border-b border-hairline/50">
+            快捷搜索
+          </div>
+          <div className="p-2">
+            {quickSuggestions.map((suggestion) => (
+              <button
+                key={suggestion}
+                onClick={() => {
+                  setQuery(suggestion);
+                  window.open(`${searchEngines[selectedEngine as keyof typeof searchEngines].url}${encodeURIComponent(suggestion)}`, '_blank');
+                }}
+                className="w-full text-left px-2 py-1.5 text-sm text-body hover:bg-surface-soft rounded transition-colors"
+              >
+                {suggestion}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function QuickNoteWidget() {
+  const { notes, addNote, deleteNote, clearAll } = useNoteStore();
+  const [inputValue, setInputValue] = useState('');
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (inputValue.trim()) {
+      addNote(inputValue.trim());
+      setInputValue('');
+    }
+  };
+
+  const startEdit = (id: string, content: string) => {
+    setEditingId(id);
+    setEditValue(content);
+  };
+
+  const saveEdit = () => {
+    if (editingId && editValue.trim()) {
+      const { updateNote } = useNoteStore.getState();
+      updateNote(editingId, editValue.trim());
+    }
+    setEditingId(null);
+    setEditValue('');
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditValue('');
+  };
+
+  const formatTime = (timestamp: number) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+    const diff = now.getTime() - timestamp;
+
+    if (diff < 60000) return '刚刚';
+    if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
+    if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
+    if (date.toDateString() === now.toDateString()) return '今天';
+
+    return date.toLocaleDateString('zh-CN', { month: 'short', day: 'numeric' });
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <form onSubmit={handleSubmit} className="mb-3">
+        <textarea
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          placeholder="写下你的想法..."
+          rows={2}
+          className="w-full px-3 py-2 text-sm bg-canvas border border-hairline rounded-lg focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary/20 transition-colors resize-none"
+        />
+        <div className="flex justify-end mt-2">
+          <button
+            type="submit"
+            disabled={!inputValue.trim()}
+            className="px-3 py-1 text-xs bg-primary text-on-primary rounded-md hover:bg-primary-active disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            保存笔记
+          </button>
+        </div>
+      </form>
+
+      <div className="flex-1 overflow-auto space-y-2">
+        {notes.length === 0 ? (
+          <div className="text-center text-muted-soft text-sm py-4">
+            暂无笔记，记录你的想法吧
+          </div>
+        ) : (
+          notes.map((note) => (
+            <div
+              key={note.id}
+              className="group p-2 rounded-md bg-surface-soft/30 border border-hairline/30 hover:border-hairline transition-colors"
+            >
+              {editingId === note.id ? (
+                <div className="space-y-2">
+                  <textarea
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    rows={2}
+                    className="w-full px-2 py-1 text-sm bg-canvas border border-primary rounded focus:outline-none resize-none"
+                    autoFocus
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={cancelEdit}
+                      className="px-2 py-0.5 text-xs text-muted hover:text-ink transition-colors"
+                    >
+                      取消
+                    </button>
+                    <button
+                      onClick={saveEdit}
+                      className="px-2 py-0.5 text-xs bg-primary text-on-primary rounded hover:bg-primary-active transition-colors"
+                    >
+                      保存
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm text-body whitespace-pre-wrap break-words">{note.content}</p>
+                  <div className="flex items-center justify-between mt-2">
+                    <span className="text-xs text-muted-soft">{formatTime(note.createdAt)}</span>
+                    <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={() => startEdit(note.id, note.content)}
+                        className="p-1 rounded text-muted-soft hover:text-primary hover:bg-primary/10 transition-colors"
+                        title="编辑"
+                      >
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => deleteNote(note.id)}
+                        className="p-1 rounded text-muted-soft hover:text-red-500 hover:bg-red-50 transition-colors"
+                        title="删除"
+                      >
+                        <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
+      {notes.length > 3 && (
+        <div className="mt-2 pt-2 border-t border-hairline/50 flex justify-end">
+          <button
+            onClick={clearAll}
+            className="text-xs text-muted hover:text-red-500 transition-colors"
+          >
+            清空全部笔记
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
+}
+
+interface AIChatStore {
+  messages: ChatMessage[];
+  isLoading: boolean;
+  apiKey: string;
+  addMessage: (role: 'user' | 'assistant', content: string) => void;
+  setLoading: (loading: boolean) => void;
+  setApiKey: (key: string) => void;
+  clearMessages: () => void;
+}
+
+const useAIChatStore = create<AIChatStore>()(
+  persist(
+    (set) => ({
+      messages: [],
+      isLoading: false,
+      apiKey: '',
+      addMessage: (role, content) => {
+        const message: ChatMessage = {
+          id: `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          role,
+          content,
+          timestamp: Date.now(),
+        };
+        set((state) => ({ messages: [...state.messages.slice(-20), message] }));
+      },
+      setLoading: (isLoading) => set({ isLoading }),
+      setApiKey: (apiKey) => set({ apiKey }),
+      clearMessages: () => set({ messages: [] }),
+    }),
+    {
+      name: 'mindtab-ai-chat',
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+);
+
+function AIChatWidget() {
+  const { messages, isLoading, apiKey, addMessage, setLoading, clearMessages } = useAIChatStore();
+  const [inputValue, setInputValue] = useState('');
+  const [showSettings, setShowSettings] = useState(false);
+  const [localApiKey, setLocalApiKey] = useState(apiKey);
+  const messagesEndRef = React.useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  React.useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleSend = async () => {
+    if (!inputValue.trim() || isLoading) return;
+
+    const userMessage = inputValue.trim();
+    setInputValue('');
+    addMessage('user', userMessage);
+    setLoading(true);
+
+    if (!apiKey) {
+      addMessage('assistant', '请先在设置中配置 API Key');
+      setLoading(false);
+      setShowSettings(true);
+      return;
+    }
+
+    try {
+      const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'anthropic/claude-3-haiku',
+          messages: [
+            { role: 'system', content: '你是一个友好的AI助手，请用简洁的语言回答。' },
+            ...messages.slice(-10).map(m => ({ role: m.role, content: m.content })),
+            { role: 'user', content: userMessage },
+          ],
+          max_tokens: 500,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('API request failed');
+      }
+
+      const data = await response.json();
+      const assistantMessage = data.choices?.[0]?.message?.content || '抱歉，我无法回答这个问题。';
+      addMessage('assistant', assistantMessage);
+    } catch {
+      addMessage('assistant', '抱歉，发生了错误。请检查 API Key 是否正确。');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveApiKey = () => {
+    useAIChatStore.getState().setApiKey(localApiKey);
+    setShowSettings(false);
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-xs text-muted-soft">{messages.length} 条消息</span>
+        <div className="flex gap-1">
+          <button
+            onClick={() => setShowSettings(!showSettings)}
+            className="p-1 rounded text-muted-soft hover:text-primary hover:bg-surface-soft transition-colors"
+            title="设置"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="3" />
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+            </svg>
+          </button>
+          {messages.length > 0 && (
+            <button
+              onClick={clearMessages}
+              className="p-1 rounded text-muted-soft hover:text-red-500 hover:bg-red-50 transition-colors"
+              title="清空"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {showSettings && (
+        <div className="mb-2 p-2 bg-surface-soft/50 rounded-lg border border-hairline/30">
+          <label className="text-xs text-muted mb-1 block">OpenRouter API Key</label>
+          <input
+            type="password"
+            value={localApiKey}
+            onChange={(e) => setLocalApiKey(e.target.value)}
+            placeholder="sk-or-..."
+            className="w-full h-7 px-2 text-xs bg-canvas border border-hairline rounded focus:outline-none focus:border-primary"
+          />
+          <div className="flex justify-end mt-1">
+            <button
+              onClick={handleSaveApiKey}
+              className="px-2 py-0.5 text-xs bg-primary text-on-primary rounded hover:bg-primary-active transition-colors"
+            >
+              保存
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="flex-1 overflow-auto space-y-2 mb-2 min-h-0">
+        {messages.length === 0 ? (
+          <div className="text-center text-muted-soft text-sm py-4">
+            <div className="text-2xl mb-2">💬</div>
+            <p>开始对话吧！</p>
+          </div>
+        ) : (
+          messages.map((msg) => (
+            <div
+              key={msg.id}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            >
+              <div
+                className={`max-w-[85%] px-2 py-1.5 rounded-lg text-xs ${
+                  msg.role === 'user'
+                    ? 'bg-primary/10 text-ink'
+                    : 'bg-surface-soft/50 text-body'
+                }`}
+              >
+                {msg.content}
+              </div>
+            </div>
+          ))
+        )}
+        {isLoading && (
+          <div className="flex justify-start">
+            <div className="px-2 py-1.5 rounded-lg bg-surface-soft/50">
+              <div className="flex gap-1">
+                <div className="w-1.5 h-1.5 bg-muted rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <div className="w-1.5 h-1.5 bg-muted rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <div className="w-1.5 h-1.5 bg-muted rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <form onSubmit={(e) => { e.preventDefault(); handleSend(); }} className="flex gap-2">
+        <input
+          type="text"
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
+          placeholder="输入消息..."
+          disabled={isLoading}
+          className="flex-1 h-8 px-3 text-xs bg-canvas border border-hairline rounded-lg focus:outline-none focus:border-primary disabled:opacity-50"
         />
         <button
           type="submit"
-          disabled={!inputValue.trim()}
-          className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-sm font-medium text-white transition-colors"
+          disabled={!inputValue.trim() || isLoading}
+          className="w-8 h-8 flex items-center justify-center bg-primary text-on-primary rounded-lg hover:bg-primary-active disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
-          添加
+          <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="22" y1="2" x2="11" y2="13" />
+            <polygon points="22 2 15 22 11 13 2 9 22 2" />
+          </svg>
         </button>
       </form>
     </div>
   );
 }
 
-function PomodoroCard() {
-  const { isRunning, minutes, seconds, mode, cycles, start, pause, reset } = usePomodoroStore();
-
-  const formatTime = (mins, secs) => {
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-  };
-
+function RightPanel() {
   return (
-    <div className="bg-neutral-900 rounded-2xl border border-neutral-800 p-6">
-      <div className="flex items-center justify-between mb-5">
-        <div className="flex items-center gap-2">
-          <span className="text-lg">🍅</span>
-          <span className="text-sm font-medium text-white">番茄钟</span>
-        </div>
-        <span className="text-xs text-neutral-500">第 {cycles + 1} 个番茄</span>
+    <aside className="w-64 border-l border-hairline p-4">
+      <h3 className="text-sm font-medium text-muted mb-4">快捷操作</h3>
+      <div className="space-y-2">
+        <ActionItem icon="file" label="新建文档" />
+        <ActionItem icon="image" label="上传图片" />
+        <ActionItem icon="link" label="添加链接" />
+        <ActionItem icon="video" label="录制视频" />
       </div>
 
-      <div className="text-center py-4">
-        <div className={`text-5xl font-bold font-mono mb-2 ${mode === 'work' ? 'text-white' : 'text-green-400'}`}>
-          {formatTime(minutes, seconds)}
-        </div>
-        <div className={`text-xs font-medium ${mode === 'work' ? 'text-amber-500' : 'text-green-400'}`}>
-          {mode === 'work' ? '专注时间' : '休息时间'}
-        </div>
+      <h3 className="text-sm font-medium text-muted mb-4 mt-6">最近访问</h3>
+      <div className="space-y-2">
+        <RecentItem title="项目文档" time="5分钟前" />
+        <RecentItem title="会议记录" time="1小时前" />
+        <RecentItem title="设计稿" time="昨天" />
       </div>
 
-      <div className="flex justify-center gap-2">
-        {!isRunning ? (
-          <button
-            onClick={start}
-            className="px-5 py-2.5 bg-amber-500 hover:bg-amber-600 rounded-lg text-sm font-medium text-white transition-colors"
-          >
-            开始专注
-          </button>
-        ) : (
-          <button
-            onClick={pause}
-            className="px-5 py-2.5 bg-yellow-500 hover:bg-yellow-600 rounded-lg text-sm font-medium text-white transition-colors"
-          >
-            暂停
-          </button>
-        )}
-        <button
-          onClick={reset}
-          className="px-4 py-2.5 bg-neutral-800 hover:bg-neutral-700 rounded-lg text-sm text-neutral-300 transition-colors"
-        >
-          重置
-        </button>
+      <h3 className="text-sm font-medium text-muted mb-4 mt-6">快速链接</h3>
+      <div className="space-y-2">
+        <QuickLink href="https://github.com" label="GitHub" />
+        <QuickLink href="https://notion.so" label="Notion" />
+        <QuickLink href="https://calendar.google.com" label="日历" />
       </div>
-    </div>
+    </aside>
   );
 }
 
-function RightColumn() {
+function ActionItem({ icon, label }: { icon: string; label: string }) {
   return (
-    <div className="space-y-6">
-      <WeatherCard />
-      <FocusStatsCard />
-    </div>
+    <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-body hover:bg-surface-soft transition-colors">
+      <Icon icon={icon} />
+      {label}
+    </button>
   );
 }
 
-function WeatherCard() {
-  const [weather] = useState({
-    temperature: 22,
-    city: '北京',
-    condition: '多云',
-    low: 15,
-    high: 26,
-    aqi: 45,
-  });
-
-  const getWeatherIcon = (condition) => {
-    if (condition.includes('晴')) return (
-      <svg className="w-12 h-12 text-amber-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <circle cx="12" cy="12" r="5" />
-        <line x1="12" y1="1" x2="12" y2="3" />
-        <line x1="12" y1="21" x2="12" y2="23" />
-        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
-        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
-        <line x1="1" y1="12" x2="3" y2="12" />
-        <line x1="21" y1="12" x2="23" y2="12" />
-        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
-        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
-      </svg>
-    );
-    if (condition.includes('云')) return (
-      <svg className="w-12 h-12 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" />
-      </svg>
-    );
-    return (
-      <svg className="w-12 h-12 text-blue-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-        <path d="M20 17.58A5 5 0 0 0 18 8h-1.26A8 8 0 1 0 4 16.25" />
-        <line x1="8" y1="19" x2="8" y2="21" />
-        <line x1="8" y1="13" x2="8" y2="15" />
-        <line x1="16" y1="19" x2="16" y2="21" />
-        <line x1="16" y1="13" x2="16" y2="15" />
-        <line x1="12" y1="21" x2="12" y2="23" />
-        <line x1="12" y1="15" x2="12" y2="17" />
-      </svg>
-    );
-  };
-
+function RecentItem({ title, time }: { title: string; time: string }) {
   return (
-    <div className="bg-neutral-900 rounded-2xl border border-neutral-800 p-6">
-      <div className="flex items-center justify-between mb-4">
-        <div className="flex items-center gap-2">
-          <svg className="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z" />
-            <polyline points="14 2 14 8 20 8" />
-          </svg>
-          <span className="text-sm font-medium text-white">天气</span>
-        </div>
-        <span className="px-2 py-0.5 bg-green-500/20 text-green-400 rounded-full text-xs font-medium">
-          AQI {weather.aqi}
-        </span>
-      </div>
-
-      <div className="flex items-center gap-4">
-        {getWeatherIcon(weather.condition)}
-        <div>
-          <div className="text-4xl font-bold text-white">{weather.temperature}°</div>
-          <div className="text-sm text-neutral-400">{weather.condition}</div>
-          <div className="text-xs text-neutral-500">{weather.city}</div>
-        </div>
-      </div>
-
-      <div className="mt-4 pt-4 border-t border-neutral-800">
-        <div className="flex items-center justify-between text-sm">
-          <span className="text-neutral-500">温度范围</span>
-          <span className="text-neutral-300">{weather.low}° - {weather.high}°</span>
-        </div>
-        <div className="mt-2 text-xs text-neutral-500 flex items-center gap-1.5">
-          <span className="w-1.5 h-1.5 bg-green-400 rounded-full"></span>
-          空气质量优，适合户外运动
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function FocusStatsCard() {
-  return (
-    <div className="bg-neutral-900 rounded-2xl border border-neutral-800 p-6">
-      <div className="flex items-center gap-2 mb-5">
-        <svg className="w-4 h-4 text-amber-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="12" cy="12" r="10" />
-          <polyline points="12 6 12 12 16 14" />
+    <button className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-body hover:bg-surface-soft transition-colors">
+      <div className="w-8 h-8 bg-primary/10 rounded flex items-center justify-center">
+        <svg className="w-4 h-4 text-primary" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+          <polyline points="14 2 14 8 20 8" />
+          <line x1="16" y1="13" x2="8" y2="13" />
+          <line x1="16" y1="17" x2="8" y2="17" />
+          <polyline points="10 9 9 9 8 9" />
         </svg>
-        <span className="text-sm font-medium text-white">专注统计</span>
       </div>
-
-      <div className="grid grid-cols-3 gap-4">
-        <div className="text-center p-3 bg-neutral-800/50 rounded-xl">
-          <div className="text-2xl font-bold text-amber-500">4.5h</div>
-          <div className="text-xs text-neutral-500 mt-1">今日专注</div>
-        </div>
-        <div className="text-center p-3 bg-neutral-800/50 rounded-xl">
-          <div className="text-2xl font-bold text-green-500">12</div>
-          <div className="text-xs text-neutral-500 mt-1">完成任务</div>
-        </div>
-        <div className="text-center p-3 bg-neutral-800/50 rounded-xl">
-          <div className="text-2xl font-bold text-orange-500">8</div>
-          <div className="text-xs text-neutral-500 mt-1">番茄钟</div>
-        </div>
+      <div className="flex-1 text-left">
+        <div className="text-sm text-body">{title}</div>
+        <div className="text-xs text-muted-soft">{time}</div>
       </div>
-    </div>
+    </button>
   );
 }
 
-function BottomBar() {
+function QuickLink({ href, label }: { href: string; label: string }) {
   return (
-    <div className="fixed bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2">
-      {quickLinks.map((link) => (
-        <a
-          key={link.id}
-          href={link.href}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`w-11 h-11 ${link.bgColor} rounded-xl flex items-center justify-center text-white text-xs font-semibold hover:scale-105 hover:shadow-lg transition-all`}
-          title={link.label}
-        >
-          {link.label}
-        </a>
-      ))}
-      
-      <div className="w-px h-8 bg-neutral-700 mx-1"></div>
-      
-      <button className="w-11 h-11 bg-neutral-800 hover:bg-neutral-700 rounded-xl flex items-center justify-center transition-colors">
-        <svg className="w-4 h-4 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-          <circle cx="12" cy="12" r="3" />
-          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-body hover:bg-surface-soft transition-colors"
+    >
+      <div className="w-8 h-8 bg-surface-soft rounded flex items-center justify-center">
+        <svg className="w-4 h-4 text-muted" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
         </svg>
-      </button>
-    </div>
-  );
-}
-
-function SettingsPanel({ onClose }) {
-  const [activeTab, setActiveTab] = useState('basic');
-  const [apiKey, setApiKey] = useState('');
-
-  return (
-    <div className="fixed right-0 top-0 bottom-0 w-96 bg-neutral-900 border-l border-neutral-800 shadow-2xl z-50 flex flex-col">
-      <div className="flex items-center justify-between p-5 border-b border-neutral-800">
-        <span className="font-semibold text-white text-lg">设置</span>
-        <button
-          onClick={onClose}
-          className="w-9 h-9 hover:bg-neutral-800 rounded-lg flex items-center justify-center transition-colors"
-        >
-          <svg className="w-5 h-5 text-neutral-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
-        </button>
       </div>
-
-      <div className="flex border-b border-neutral-800">
-        {['basic', 'widgets', 'appearance'].map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`flex-1 px-4 py-3 text-sm font-medium transition-colors ${
-              activeTab === tab 
-                ? 'text-amber-500 border-b-2 border-amber-500' 
-                : 'text-neutral-400 hover:text-neutral-200'
-            }`}
-          >
-            {tab === 'basic' ? '基本' : tab === 'widgets' ? '小组件' : '外观'}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex-1 overflow-auto p-5">
-        {activeTab === 'basic' && (
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-white mb-3">AI 模型</label>
-              <select className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-xl text-white text-sm focus:outline-none focus:border-amber-500 transition-colors">
-                <option value="claude">Claude 3.5 Sonnet</option>
-                <option value="gpt-4">GPT-4o</option>
-                <option value="gpt-3.5">GPT-3.5 Turbo</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-white mb-3">API Key</label>
-              <input
-                type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-                placeholder="sk-..."
-                className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-xl text-white text-sm placeholder-neutral-500 focus:outline-none focus:border-amber-500 transition-colors"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-white mb-3">权限状态</label>
-              <div className="flex items-center justify-between p-4 bg-neutral-800/50 rounded-xl">
-                <div className="flex items-center gap-3">
-                  <span className="text-sm text-neutral-300">标签页访问</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                  <span className="text-xs text-green-400">已授权</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'widgets' && (
-          <div className="space-y-3">
-            <div className="text-xs text-neutral-500 uppercase tracking-wider mb-3">已安装组件</div>
-            {['天气', '工作记忆', '待办清单', '番茄钟', '专注统计'].map((widget, index) => (
-              <div key={index} className="flex items-center justify-between p-4 bg-neutral-800/50 rounded-xl">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-neutral-700 rounded-lg flex items-center justify-center">
-                    <span className="text-neutral-400 text-sm">📦</span>
-                  </div>
-                  <span className="text-sm text-neutral-300">{widget}</span>
-                </div>
-                <button className="text-xs text-red-400 hover:text-red-300 px-3 py-1 rounded-lg hover:bg-red-500/10 transition-colors">移除</button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {activeTab === 'appearance' && (
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-white mb-3">主题色</label>
-              <div className="flex gap-3">
-                <button className="w-10 h-10 bg-amber-500 rounded-xl ring-2 ring-amber-500 ring-offset-2 ring-offset-neutral-900"></button>
-                <button className="w-10 h-10 bg-blue-500 rounded-xl"></button>
-                <button className="w-10 h-10 bg-green-500 rounded-xl"></button>
-                <button className="w-10 h-10 bg-purple-500 rounded-xl"></button>
-                <button className="w-10 h-10 bg-neutral-700 rounded-xl"></button>
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-white mb-3">布局宽度</label>
-              <div className="flex gap-2">
-                <button className="flex-1 px-4 py-3 bg-amber-500/20 text-amber-400 rounded-xl text-sm font-medium border border-amber-500/30">
-                  紧凑
-                </button>
-                <button className="flex-1 px-4 py-3 bg-neutral-800 text-neutral-400 rounded-xl text-sm hover:bg-neutral-700 transition-colors">
-                  适中
-                </button>
-                <button className="flex-1 px-4 py-3 bg-neutral-800 text-neutral-400 rounded-xl text-sm hover:bg-neutral-700 transition-colors">
-                  宽松
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+      {label}
+    </a>
   );
 }
