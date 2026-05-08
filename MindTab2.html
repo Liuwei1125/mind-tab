@@ -1,0 +1,6105 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MindTab — AI 原生新标签页</title>
+<style>
+/* ==================== CSS 变量 & 主题 ==================== */
+:root {
+  --bg-primary: #0a0a14;
+  --bg-secondary: #12121f;
+  --bg-card: rgba(255, 255, 255, 0.04);
+  --bg-card-hover: rgba(255, 255, 255, 0.07);
+  --bg-glass: rgba(255, 255, 255, 0.06);
+  --bg-glass-strong: rgba(255, 255, 255, 0.1);
+  --border-glass: rgba(255, 255, 255, 0.08);
+  --border-glow: rgba(139, 92, 246, 0.3);
+  --text-primary: #e8e8f0;
+  --text-secondary: #9898b0;
+  --text-muted: #5a5a72;
+  --accent-purple: #8b5cf6;
+  --accent-blue: #3b82f6;
+  --accent-gradient: linear-gradient(135deg, #8b5cf6, #3b82f6);
+  --accent-gradient-subtle: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(59,130,246,0.15));
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3);
+  --shadow-glow: 0 0 30px rgba(139, 92, 246, 0.15);
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --transition-fast: 0.2s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+}
+
+/* 浅色主题 */
+[data-theme="light"] {
+  --bg-primary: #f5f5fa;
+  --bg-secondary: #eeeef5;
+  --bg-card: rgba(255, 255, 255, 0.7);
+  --bg-card-hover: rgba(255, 255, 255, 0.85);
+  --bg-glass: rgba(255, 255, 255, 0.5);
+  --bg-glass-strong: rgba(255, 255, 255, 0.7);
+  --border-glass: rgba(0, 0, 0, 0.08);
+  --text-primary: #1a1a2e;
+  --text-secondary: #5a5a72;
+  --text-muted: #9898b0;
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.08);
+  --shadow-glow: 0 0 30px rgba(139, 92, 246, 0.1);
+}
+
+/* ==================== 全局重置 ==================== */
+*, *::before, *::after {
+  margin: 0; padding: 0; box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-stack);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  line-height: 1.6;
+}
+
+/* 背景装饰 */
+body::before {
+  content: '';
+  position: fixed;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background: radial-gradient(ellipse at 30% 20%, rgba(139,92,246,0.08) 0%, transparent 50%),
+              radial-gradient(ellipse at 70% 80%, rgba(59,130,246,0.06) 0%, transparent 50%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ==================== 滚动条 ==================== */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--text-muted); border-radius: 3px; }
+
+/* ==================== 通用组件 ==================== */
+.card {
+  background: var(--bg-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  transition: all var(--transition-normal);
+}
+.card:hover {
+  background: var(--bg-card-hover);
+  border-color: rgba(255,255,255,0.12);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  background: var(--bg-glass);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: var(--font-stack);
+  white-space: nowrap;
+}
+.btn:hover {
+  background: var(--bg-glass-strong);
+  border-color: var(--border-glow);
+}
+.btn-primary {
+  background: var(--accent-gradient);
+  border: none;
+  color: #fff;
+  font-weight: 500;
+}
+.btn-primary:hover {
+  opacity: 0.9;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 16px rgba(139,92,246,0.3);
+}
+.btn-sm {
+  padding: 5px 12px;
+  font-size: 0.78rem;
+}
+
+.section-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+
+/* ==================== 主容器 ==================== */
+.app-container {
+  position: relative;
+  z-index: 1;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px 32px 16px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ==================== 时段标签 ==================== */
+.period-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: var(--accent-gradient-subtle);
+  border: 1px solid rgba(139,92,246,0.2);
+  border-radius: 20px;
+  font-size: 0.8rem;
+  color: var(--accent-purple);
+  margin-bottom: 20px;
+  align-self: flex-start;
+}
+.period-badge .dot {
+  width: 6px; height: 6px;
+  background: var(--accent-purple);
+  border-radius: 50%;
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.8); }
+}
+
+/* ==================== 1. AI 上下文卡片 ==================== */
+.ai-context-card {
+  position: relative;
+  background: linear-gradient(135deg, rgba(139,92,246,0.08), rgba(59,130,246,0.06));
+  border: 1px solid rgba(139,92,246,0.2);
+  border-radius: var(--radius-xl);
+  padding: 24px 28px;
+  margin-bottom: 28px;
+  overflow: hidden;
+  transition: all var(--transition-slow);
+}
+
+/* 呼吸动画边框 */
+.ai-context-card::before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: var(--radius-xl);
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(139,92,246,0.4), rgba(59,130,246,0.2), rgba(139,92,246,0.1));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  animation: breathing-border 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes breathing-border {
+  0%, 100% { opacity: 0.5; }
+  50% { opacity: 1; }
+}
+
+.ai-context-card.dismissed {
+  opacity: 0;
+  transform: translateY(-10px) scale(0.98);
+  max-height: 0;
+  padding: 0 28px;
+  margin-bottom: 0;
+  border: none;
+  overflow: hidden;
+}
+
+.ai-context-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.ai-context-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.ai-context-title .icon {
+  width: 28px; height: 28px;
+  background: var(--accent-gradient);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.ai-context-timestamp {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.ai-context-body {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.8;
+}
+.ai-context-body .line {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.ai-context-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.ai-context-details {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height var(--transition-slow), margin var(--transition-slow);
+  margin-top: 0;
+}
+.ai-context-details.expanded {
+  max-height: 400px;
+  margin-top: 16px;
+}
+
+.detail-item {
+  display: flex;
+  gap: 12px;
+  padding: 12px;
+  background: var(--bg-glass);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  border-left: 3px solid var(--accent-purple);
+}
+.detail-item .detail-title {
+  font-weight: 500;
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+.detail-item .detail-domain {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+.detail-item .detail-summary {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.dismiss-reminder {
+  text-align: center;
+  padding: 8px;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+  cursor: pointer;
+}
+.dismiss-reminder.visible {
+  opacity: 1;
+}
+.dismiss-reminder:hover {
+  color: var(--text-secondary);
+}
+
+/* ==================== 2. AI 对话区 ==================== */
+.ai-dialog-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 28px;
+}
+
+.ai-context-hint {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.ai-context-hint span {
+  color: var(--accent-purple);
+}
+
+.dialog-input-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 680px;
+}
+
+.dialog-input {
+  width: 100%;
+  padding: 16px 120px 16px 20px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+  font-size: 0.95rem;
+  font-family: var(--font-stack);
+  outline: none;
+  transition: all var(--transition-normal);
+}
+.dialog-input:focus {
+  border-color: var(--border-glow);
+  box-shadow: 0 0 0 3px rgba(139,92,246,0.1), var(--shadow-glow);
+}
+.dialog-input::placeholder {
+  color: var(--text-muted);
+}
+
+.model-selector {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.model-select {
+  padding: 6px 10px;
+  background: var(--bg-glass-strong);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-family: var(--font-stack);
+  cursor: pointer;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+}
+.model-select option {
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+}
+
+.send-btn {
+  width: 36px; height: 36px;
+  background: var(--accent-gradient);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  font-size: 16px;
+}
+.send-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 12px rgba(139,92,246,0.4);
+}
+
+/* 快捷指令 */
+.quick-commands {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+  justify-content: center;
+  max-width: 680px;
+}
+.quick-cmd {
+  padding: 7px 14px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: 20px;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: var(--font-stack);
+}
+.quick-cmd:hover {
+  background: var(--accent-gradient-subtle);
+  border-color: rgba(139,92,246,0.3);
+  color: var(--accent-purple);
+}
+
+/* AI 回复区域 */
+.ai-response-area {
+  width: 100%;
+  max-width: 680px;
+  margin-top: 16px;
+  min-height: 0;
+}
+
+.ai-response {
+  padding: 16px 20px;
+  background: var(--bg-glass);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-lg);
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  animation: fadeInUp 0.3s ease;
+  display: none;
+}
+.ai-response.visible {
+  display: block;
+}
+.ai-response .typing-cursor {
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  background: var(--accent-purple);
+  margin-left: 2px;
+  animation: blink-cursor 0.8s step-end infinite;
+  vertical-align: text-bottom;
+}
+
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==================== 3. 三栏区域 ==================== */
+.three-columns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  flex: 1;
+  margin-bottom: 20px;
+}
+
+.column-card {
+  min-height: 200px;
+}
+
+/* 模块通用样式 */
+.module-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.module-title .module-icon {
+  font-size: 14px;
+}
+
+/* 工作记忆详情 */
+.memory-page {
+  padding: 10px 12px;
+  background: var(--bg-glass);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  transition: all var(--transition-fast);
+  cursor: pointer;
+  border-left: 2px solid transparent;
+}
+.memory-page:hover {
+  background: var(--bg-glass-strong);
+  border-left-color: var(--accent-purple);
+}
+.memory-page .page-title {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+.memory-page .page-domain {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+.memory-page .page-summary {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+/* 日程 */
+.schedule-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-glass);
+}
+.schedule-item:last-child { border-bottom: none; }
+.schedule-time {
+  font-size: 0.75rem;
+  color: var(--accent-purple);
+  font-weight: 600;
+  min-width: 48px;
+  padding-top: 1px;
+}
+.schedule-title {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+
+/* 待办 + 番茄钟 */
+.todo-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+}
+.todo-checkbox {
+  width: 18px; height: 18px;
+  border: 2px solid var(--text-muted);
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+.todo-checkbox.checked {
+  background: var(--accent-gradient);
+  border-color: transparent;
+}
+.todo-checkbox.checked::after {
+  content: '✓';
+  color: #fff;
+  font-size: 11px;
+  font-weight: bold;
+}
+.todo-text {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  flex: 1;
+}
+.todo-text.completed {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+.todo-add {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+.todo-add input {
+  flex: 1;
+  padding: 6px 10px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.8rem;
+  font-family: var(--font-stack);
+  outline: none;
+}
+.todo-add input:focus {
+  border-color: var(--border-glow);
+}
+.todo-add input::placeholder {
+  color: var(--text-muted);
+}
+
+/* 番茄钟 */
+.pomodoro {
+  margin-top: 16px;
+  text-align: center;
+  padding: 14px;
+  background: var(--accent-gradient-subtle);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(139,92,246,0.15);
+}
+.pomodoro-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 6px;
+}
+.pomodoro-time {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 10px;
+}
+.pomodoro-controls {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+}
+
+/* 相关资料 */
+.resource-item {
+  padding: 10px 12px;
+  background: var(--bg-glass);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.resource-item:hover {
+  background: var(--bg-glass-strong);
+}
+.resource-item .res-title {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+.resource-item .res-source {
+  font-size: 0.72rem;
+  color: var(--accent-blue);
+}
+.resource-item .res-reason {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+/* 新闻摘要 */
+.news-item {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-glass);
+}
+.news-item:last-child { border-bottom: none; }
+.news-item .news-title {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 3px;
+}
+.news-item .news-summary {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+/* 知识卡片 */
+.knowledge-card {
+  padding: 16px;
+  background: var(--accent-gradient-subtle);
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(139,92,246,0.15);
+  text-align: center;
+  min-height: 120px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.knowledge-term {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+.knowledge-desc {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+.knowledge-nav {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+.knowledge-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.knowledge-dot.active {
+  background: var(--accent-purple);
+  width: 18px;
+  border-radius: 3px;
+}
+
+/* 阅读队列 */
+.reading-item {
+  display: flex;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-glass);
+}
+.reading-item:last-child { border-bottom: none; }
+.reading-icon {
+  width: 36px; height: 36px;
+  background: var(--bg-glass-strong);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.reading-info .reading-title {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}
+.reading-info .reading-meta {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+/* 习惯打卡 */
+.habit-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.habit-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-glass);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1px solid transparent;
+}
+.habit-item:hover {
+  background: var(--bg-glass-strong);
+}
+.habit-item.checked {
+  border-color: rgba(139,92,246,0.3);
+  background: var(--accent-gradient-subtle);
+}
+.habit-icon {
+  font-size: 20px;
+  width: 28px;
+  text-align: center;
+}
+.habit-name {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  flex: 1;
+}
+.habit-status {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+.habit-item.checked .habit-status {
+  color: var(--accent-purple);
+}
+
+/* 今日回顾 */
+.review-stat {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-glass);
+}
+.review-stat:last-child { border-bottom: none; }
+.review-stat .stat-label {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+.review-stat .stat-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+/* 学习推荐 */
+.learning-item {
+  padding: 10px 12px;
+  background: var(--bg-glass);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+}
+.learning-item .learn-title {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+.learning-item .learn-source {
+  font-size: 0.72rem;
+  color: var(--accent-blue);
+}
+
+/* 明日规划 */
+.plan-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-glass);
+}
+.plan-item:last-child { border-bottom: none; }
+.plan-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent-purple);
+  flex-shrink: 0;
+}
+.plan-text {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+
+/* 放松内容 */
+.relax-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  margin-bottom: 10px;
+  font-family: var(--font-stack);
+  color: var(--text-primary);
+  text-align: left;
+}
+.relax-btn:hover {
+  background: var(--bg-glass-strong);
+  border-color: rgba(139,92,246,0.2);
+}
+.relax-btn .relax-icon {
+  font-size: 24px;
+}
+.relax-btn .relax-title {
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+.relax-btn .relax-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* 睡眠建议 */
+.sleep-card {
+  text-align: center;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.06));
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(99,102,241,0.15);
+}
+.sleep-card .sleep-icon {
+  font-size: 36px;
+  margin-bottom: 10px;
+}
+.sleep-card .sleep-text {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.sleep-card .sleep-tip {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 10px;
+}
+
+/* ==================== 天气组件 ==================== */
+.weather-widget {
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.06));
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(59,130,246,0.15);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+.weather-widget:hover {
+  border-color: rgba(59,130,246,0.3);
+  transform: translateY(-2px);
+}
+.weather-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+.weather-city {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.weather-city::after {
+  content: '▼';
+  font-size: 0.6rem;
+  opacity: 0.6;
+}
+.weather-aqi {
+  padding: 4px 10px;
+  background: rgba(34,197,94,0.15);
+  border-radius: 12px;
+  font-size: 0.72rem;
+  color: #22c55e;
+  font-weight: 500;
+}
+.weather-aqi.moderate {
+  background: rgba(234,179,8,0.15);
+  color: #eab308;
+}
+.weather-aqi.poor {
+  background: rgba(239,68,68,0.15);
+  color: #ef4444;
+}
+.weather-main {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.weather-icon {
+  font-size: 52px;
+  line-height: 1;
+}
+.weather-temp {
+  font-size: 2.8rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  line-height: 1;
+}
+.weather-condition {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+.weather-range {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+.weather-advice {
+  padding: 10px 12px;
+  background: var(--bg-glass);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  border-left: 3px solid var(--accent-blue);
+}
+
+/* ==================== 日历组件 ==================== */
+.calendar-widget {
+  padding: 20px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+}
+.calendar-widget:hover {
+  background: var(--bg-card-hover);
+}
+.calendar-date-section {
+  text-align: center;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border-glass);
+  margin-bottom: 16px;
+}
+.calendar-month-day {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.calendar-weekday {
+  font-size: 0.9rem;
+  color: var(--accent-purple);
+  font-weight: 500;
+}
+.calendar-lunar {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.calendar-events {
+  margin-bottom: 14px;
+}
+.calendar-event-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-glass);
+}
+.calendar-event-item:last-child {
+  border-bottom: none;
+}
+.calendar-event-time {
+  font-size: 0.75rem;
+  color: var(--accent-purple);
+  font-weight: 600;
+  min-width: 42px;
+}
+.calendar-event-title {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+.calendar-ai-reminder {
+  padding: 10px 12px;
+  background: var(--accent-gradient-subtle);
+  border-radius: var(--radius-sm);
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  border-left: 3px solid var(--accent-purple);
+}
+
+/* ==================== 热搜组件 ==================== */
+.trending-widget {
+  padding: 20px;
+  background: var(--bg-card);
+  border-radius: var(--radius-lg);
+}
+.trending-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  padding: 4px;
+  background: var(--bg-glass);
+  border-radius: var(--radius-sm);
+}
+.trending-tab {
+  flex: 1;
+  padding: 6px 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-family: var(--font-stack);
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+.trending-tab:hover {
+  color: var(--text-primary);
+}
+.trending-tab.active {
+  background: var(--accent-gradient);
+  color: #fff;
+}
+.trending-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.trending-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-glass);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.trending-item:last-child {
+  border-bottom: none;
+}
+.trending-item:hover {
+  padding-left: 4px;
+}
+.trending-rank {
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.trending-rank.top3 {
+  background: linear-gradient(135deg, #ef4444, #f97316);
+  color: #fff;
+}
+.trending-title {
+  flex: 1;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.trending-heat {
+  font-size: 0.7rem;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.trending-heat.hot {
+  background: rgba(239,68,68,0.15);
+  color: #ef4444;
+}
+.trending-heat.warm {
+  background: rgba(234,179,8,0.15);
+  color: #eab308;
+}
+.trending-heat.new {
+  background: rgba(59,130,246,0.15);
+  color: var(--accent-blue);
+}
+.trending-source {
+  font-size: 0.7rem;
+  color: var(--accent-blue);
+  flex-shrink: 0;
+}
+.trending-reason {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.trending-tech-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-glass);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.trending-tech-item:last-child {
+  border-bottom: none;
+}
+.trending-tech-item:hover {
+  padding-left: 4px;
+}
+.trending-tech-title {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+.trending-tech-source {
+  font-size: 0.72rem;
+  color: var(--accent-blue);
+}
+.trending-ai-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-glass);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+.trending-ai-item:last-child {
+  border-bottom: none;
+}
+.trending-ai-item:hover {
+  padding-left: 4px;
+}
+.trending-ai-title {
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+.trending-ai-reason {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* ==================== 4. 底部工具栏 ==================== */
+.bottom-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 0;
+  border-top: 1px solid var(--border-glass);
+}
+
+.quick-nav {
+  display: flex;
+  gap: 6px;
+}
+.nav-icon {
+  width: 36px; height: 36px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-decoration: none;
+}
+.nav-icon:hover {
+  background: var(--bg-glass-strong);
+  border-color: var(--border-glow);
+  color: var(--text-primary);
+}
+
+.toolbar-right {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ==================== 设置面板 ==================== */
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  z-index: 100;
+  opacity: 0;
+  visibility: hidden;
+  transition: all var(--transition-normal);
+}
+.settings-overlay.open {
+  opacity: 1;
+  visibility: visible;
+}
+
+.settings-panel {
+  position: fixed;
+  top: 0; right: 0;
+  width: 360px;
+  max-width: 90vw;
+  height: 100vh;
+  background: var(--bg-secondary);
+  border-left: 1px solid var(--border-glass);
+  z-index: 101;
+  transform: translateX(100%);
+  transition: transform var(--transition-normal);
+  overflow-y: auto;
+  padding: 28px;
+}
+.settings-panel.open {
+  transform: translateX(0);
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+}
+.settings-header h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+.settings-close {
+  width: 32px; height: 32px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: all var(--transition-fast);
+}
+.settings-close:hover {
+  background: var(--bg-glass-strong);
+  color: var(--text-primary);
+}
+
+.settings-group {
+  margin-bottom: 24px;
+}
+.settings-group-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+.settings-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-glass);
+}
+.settings-item:last-child { border-bottom: none; }
+.settings-label {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+.settings-desc {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
+
+.settings-select, .settings-input {
+  padding: 6px 10px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-family: var(--font-stack);
+  outline: none;
+}
+.settings-select:focus, .settings-input:focus {
+  border-color: var(--border-glow);
+}
+.settings-select option {
+  background: var(--bg-secondary);
+}
+.settings-input {
+  width: 200px;
+}
+.settings-input::placeholder {
+  color: var(--text-muted);
+}
+
+/* 权限状态 */
+.permission-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+}
+.permission-badge.granted {
+  background: rgba(34,197,94,0.15);
+  color: #22c55e;
+}
+.permission-badge.denied {
+  background: rgba(239,68,68,0.15);
+  color: #ef4444;
+}
+
+/* 主题切换 */
+.theme-toggle {
+  display: flex;
+  background: var(--bg-glass);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  border: 1px solid var(--border-glass);
+}
+.theme-option {
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  color: var(--text-secondary);
+  border: none;
+  background: none;
+  font-family: var(--font-stack);
+}
+.theme-option.active {
+  background: var(--accent-gradient);
+  color: #fff;
+}
+
+/* ==================== 设置面板标签页 ==================== */
+.settings-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 24px;
+  background: var(--bg-glass);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+}
+.settings-tab {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 0.82rem;
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  font-family: var(--font-stack);
+  text-align: center;
+}
+.settings-tab:hover {
+  color: var(--text-primary);
+  background: var(--bg-glass-strong);
+}
+.settings-tab.active {
+  background: var(--accent-gradient);
+  color: #fff;
+}
+
+/* 设置标签页内容区 */
+.settings-tab-content {
+  display: none;
+}
+.settings-tab-content.active {
+  display: block;
+}
+
+/* ==================== 小组件市场 ==================== */
+.widget-market-section {
+  margin-bottom: 28px;
+}
+.widget-market-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.widget-market-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.widget-view-toggle {
+  display: flex;
+  gap: 4px;
+}
+.widget-view-btn {
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  cursor: pointer;
+  border: 1px solid var(--border-glass);
+  border-radius: 12px;
+  background: transparent;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  font-family: var(--font-stack);
+}
+.widget-view-btn:hover {
+  background: var(--bg-glass-strong);
+}
+.widget-view-btn.active {
+  background: var(--accent-gradient);
+  border-color: transparent;
+  color: #fff;
+}
+
+/* 小组件卡片网格 */
+.widget-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.widget-card {
+  padding: 12px 10px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-align: center;
+}
+.widget-card:hover {
+  background: var(--bg-card-hover);
+  border-color: var(--border-glow);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+}
+.widget-card.added {
+  border-color: var(--accent-purple);
+  background: rgba(139,92,246,0.08);
+}
+.widget-card.dragging {
+  opacity: 0.5;
+  border-style: dashed;
+  transform: scale(0.98);
+}
+.widget-card-icon {
+  font-size: 24px;
+  margin-bottom: 6px;
+}
+.widget-card-name {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+.widget-card-desc {
+  font-size: 0.68rem;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  line-height: 1.3;
+}
+.widget-card-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  font-size: 0.7rem;
+  border-radius: 10px;
+  border: none;
+  cursor: pointer;
+  font-family: var(--font-stack);
+  transition: all var(--transition-fast);
+}
+.widget-card-action.add {
+  background: var(--bg-glass-strong);
+  color: var(--text-secondary);
+}
+.widget-card-action.add:hover {
+  background: var(--accent-purple);
+  color: #fff;
+}
+.widget-card-action.remove {
+  background: rgba(239,68,68,0.15);
+  color: #ef4444;
+}
+.widget-card-action.remove:hover {
+  background: #ef4444;
+  color: #fff;
+}
+
+/* 已添加的小组件列表 */
+.widget-list-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+.widget-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+.widget-list-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.widget-list-count {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+.widget-list {
+  max-height: 280px;
+  overflow-y: auto;
+}
+.widget-list-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px;
+  background: var(--bg-glass);
+  border-radius: var(--radius-sm);
+  margin-bottom: 6px;
+  cursor: grab;
+  transition: all var(--transition-fast);
+}
+.widget-list-item:hover {
+  background: var(--bg-card-hover);
+}
+.widget-list-item:active {
+  cursor: grabbing;
+}
+.widget-list-item.drag-over {
+  border-top: 2px solid var(--accent-purple);
+}
+.widget-list-item.dragging {
+  opacity: 0.5;
+  border: 1px dashed var(--border-glow);
+}
+.widget-drag-handle {
+  color: var(--text-muted);
+  font-size: 14px;
+  cursor: grab;
+}
+.widget-list-icon {
+  font-size: 16px;
+}
+.widget-list-name {
+  flex: 1;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+.widget-list-remove {
+  padding: 3px 8px;
+  font-size: 0.7rem;
+  background: rgba(239,68,68,0.15);
+  border: none;
+  border-radius: 4px;
+  color: #ef4444;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: var(--font-stack);
+}
+.widget-list-remove:hover {
+  background: #ef4444;
+  color: #fff;
+}
+.widget-list-empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--text-muted);
+  font-size: 0.82rem;
+}
+
+/* ==================== 布局设置 ==================== */
+.layout-preview {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+.layout-preview-label {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-bottom: 10px;
+}
+.layout-preview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.layout-preview-col {
+  height: 60px;
+  background: var(--bg-glass-strong);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+}
+
+/* ==================== 响应式 ==================== */
+@media (max-width: 768px) {
+  .app-container {
+    padding: 16px;
+  }
+  .three-columns {
+    grid-template-columns: 1fr;
+  }
+  .ai-context-card {
+    padding: 18px;
+  }
+  .quick-commands {
+    gap: 6px;
+  }
+  .quick-cmd {
+    font-size: 0.75rem;
+    padding: 6px 10px;
+  }
+  .dialog-input {
+    padding: 14px 100px 14px 16px;
+  }
+  .settings-panel {
+    width: 100vw;
+  }
+  .widget-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 769px) and (max-width: 1280px) {
+  .app-container {
+    padding: 20px 24px;
+  }
+  .three-columns {
+    gap: 12px;
+  }
+}
+
+/* ==================== 动画辅助 ==================== */
+.fade-in {
+  animation: fadeIn 0.3s ease;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.slide-up {
+  animation: slideUp 0.4s ease;
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ==================== 自定义小组件样式 ==================== */
+.custom-widget-section {
+  margin-top: 24px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-glass);
+}
+
+.custom-widget-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.custom-widget-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.custom-widget-subtabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+  background: var(--bg-glass);
+  border-radius: var(--radius-sm);
+  padding: 4px;
+}
+
+.custom-subtab {
+  flex: 1;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+  font-family: var(--font-stack);
+  text-align: center;
+}
+
+.custom-subtab:hover {
+  color: var(--text-primary);
+  background: var(--bg-glass-strong);
+}
+
+.custom-subtab.active {
+  background: var(--accent-gradient);
+  color: #fff;
+}
+
+/* 自定义组件表单 */
+.custom-widget-form {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 16px;
+}
+
+.form-group {
+  margin-bottom: 14px;
+}
+
+.form-group:last-child {
+  margin-bottom: 0;
+}
+
+.form-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.form-input {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-family: var(--font-stack);
+  transition: all var(--transition-fast);
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.1);
+}
+
+.form-select {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-family: var(--font-stack);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.form-radio-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.form-radio {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.form-radio:hover {
+  border-color: var(--accent-purple);
+}
+
+.form-radio.selected {
+  border-color: var(--accent-purple);
+  background: rgba(139, 92, 246, 0.1);
+  color: var(--text-primary);
+}
+
+.form-radio input {
+  display: none;
+}
+
+/* 图标选择器 */
+.icon-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.icon-option {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 18px;
+  transition: all var(--transition-fast);
+}
+
+.icon-option:hover {
+  border-color: var(--accent-purple);
+  transform: scale(1.1);
+}
+
+.icon-option.selected {
+  border-color: var(--accent-purple);
+  background: rgba(139, 92, 246, 0.15);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.2);
+}
+
+/* 表单按钮 */
+.form-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* 自定义组件列表 */
+.custom-widget-list {
+  margin-top: 16px;
+}
+
+.custom-widget-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  transition: all var(--transition-fast);
+}
+
+.custom-widget-item:hover {
+  border-color: var(--border-glow);
+}
+
+.custom-widget-item-info {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.custom-widget-item-icon {
+  font-size: 20px;
+}
+
+.custom-widget-item-name {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+}
+
+.custom-widget-item-type {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  background: var(--bg-glass-strong);
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+}
+
+.custom-widget-item-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.custom-widget-btn {
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  border-radius: 4px;
+  border: 1px solid var(--border-glass);
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-family: var(--font-stack);
+}
+
+.custom-widget-btn:hover {
+  background: var(--bg-glass-strong);
+}
+
+.custom-widget-btn.delete:hover {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+/* 自定义组件渲染样式 */
+.custom-widget {
+  margin-top: 16px;
+}
+
+.custom-widget:first-child {
+  margin-top: 0;
+}
+
+.widget-skeleton {
+  padding: 8px 0;
+}
+
+.skeleton-line {
+  height: 12px;
+  background: linear-gradient(90deg, var(--bg-glass) 25%, var(--bg-glass-strong) 50%, var(--bg-glass) 75%);
+  background-size: 200% 100%;
+  animation: skeleton-loading 1.5s infinite;
+  border-radius: 4px;
+  margin-bottom: 8px;
+}
+
+.skeleton-line.short {
+  width: 60%;
+}
+
+@keyframes skeleton-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.api-data-card {
+  padding: 12px;
+  background: var(--bg-glass);
+  border-radius: var(--radius-sm);
+}
+
+.api-data-title {
+  font-size: 0.85rem;
+  color: var(--text-primary);
+  margin-bottom: 4px;
+}
+
+.api-data-value {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--accent-purple);
+}
+
+.api-data-updated {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 8px;
+}
+
+.rss-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rss-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px;
+  background: var(--bg-glass);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+
+.rss-item:hover {
+  background: var(--bg-glass-strong);
+}
+
+.rss-item-rank {
+  min-width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-gradient);
+  color: #fff;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: 4px;
+}
+
+.rss-item-title {
+  font-size: 0.8rem;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+
+.custom-timer-container {
+  text-align: center;
+  padding: 16px;
+}
+
+.custom-timer-display {
+  font-size: 2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  margin-bottom: 12px;
+}
+
+.custom-timer-controls {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+}
+
+/* 快捷导航样式 */
+.shortcuts-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.shortcut-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 8px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  text-decoration: none;
+  transition: all var(--transition-fast);
+}
+
+.shortcut-item:hover {
+  background: var(--bg-glass-strong);
+  border-color: var(--border-glow);
+  transform: translateY(-2px);
+}
+
+.shortcut-icon {
+  font-size: 20px;
+  margin-bottom: 4px;
+}
+
+.shortcut-name {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+}
+
+/* 统计模块样式 */
+.stats-container {
+  display: flex;
+  justify-content: space-around;
+  padding: 12px;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-item .stat-value {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--accent-purple);
+}
+
+.stat-item .stat-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+
+/* 倒计时样式 */
+.countdown-card {
+  text-align: center;
+  padding: 16px;
+  background: var(--bg-glass);
+  border-radius: var(--radius-sm);
+}
+
+.countdown-event {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.countdown-time {
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* 便签样式 */
+.notes-textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-family: var(--font-stack);
+  resize: vertical;
+}
+
+.notes-textarea:focus {
+  outline: none;
+  border-color: var(--accent-purple);
+}
+
+/* 书签样式 */
+.bookmarks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bookmark-item {
+  padding: 10px 12px;
+  background: var(--bg-glass);
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.bookmark-item:hover {
+  background: var(--bg-glass-strong);
+}
+
+/* 空状态样式 */
+.empty-column-hint {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.empty-column-hint-icon {
+  font-size: 32px;
+  margin-bottom: 12px;
+  opacity: 0.5;
+}
+
+.empty-column-hint-text {
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+
+.empty-column-hint-btn {
+  font-size: 0.78rem;
+  color: var(--accent-purple);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.empty-column-hint-btn:hover {
+  text-decoration: underline;
+}
+
+/* 组件淡入淡出动画 */
+.widget-fade-enter {
+  animation: widgetFadeIn 0.3s ease forwards;
+}
+
+.widget-fade-exit {
+  animation: widgetFadeOut 0.3s ease forwards;
+}
+
+@keyframes widgetFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes widgetFadeOut {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+}
+
+/* 错误边界样式 */
+.widget-error {
+  padding: 16px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-sm);
+  text-align: center;
+}
+
+.widget-error-icon {
+  font-size: 24px;
+  margin-bottom: 8px;
+}
+
+.widget-error-text {
+  font-size: 0.82rem;
+  color: #ef4444;
+}
+
+.widget-error-retry {
+  margin-top: 8px;
+  font-size: 0.78rem;
+  color: var(--accent-purple);
+  cursor: pointer;
+}
+
+/* ==================== AI 工坊样式 ==================== */
+.ai-workshop {
+  padding: 0;
+}
+
+.ai-workshop-input-section {
+  margin-bottom: 20px;
+}
+
+.ai-workshop-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.ai-workshop-icon {
+  font-size: 1.1rem;
+}
+
+.ai-workshop-textarea {
+  width: 100%;
+  padding: 12px 14px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-family: var(--font-stack);
+  resize: vertical;
+  min-height: 72px;
+  line-height: 1.6;
+  transition: all var(--transition-fast);
+  box-sizing: border-box;
+}
+
+.ai-workshop-textarea:focus {
+  outline: none;
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.1);
+}
+
+.ai-workshop-textarea::placeholder {
+  color: var(--text-tertiary);
+}
+
+/* 灵感提示 */
+.ai-inspiration {
+  margin-top: 14px;
+}
+
+.ai-inspiration-label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.ai-inspiration-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ai-inspiration-tag {
+  padding: 5px 12px;
+  font-size: 0.75rem;
+  color: var(--accent-purple);
+  background: rgba(139, 92, 246, 0.08);
+  border: 1px solid rgba(139, 92, 246, 0.2);
+  border-radius: 20px;
+  cursor: pointer;
+  font-family: var(--font-stack);
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.ai-inspiration-tag:hover {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.4);
+  transform: translateY(-1px);
+}
+
+.ai-inspiration-tag:active {
+  transform: translateY(0);
+}
+
+/* 生成按钮 */
+.ai-generate-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 20px;
+  margin-top: 16px;
+  font-size: 0.88rem;
+  font-weight: 600;
+  font-family: var(--font-stack);
+  color: #fff;
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.3);
+}
+
+.ai-generate-btn:hover {
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.4);
+  transform: translateY(-1px);
+}
+
+.ai-generate-btn:active {
+  transform: translateY(0);
+}
+
+.ai-generate-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* 生成结果区域 */
+.ai-result-section {
+  margin-bottom: 20px;
+}
+
+/* 生成中状态 */
+.ai-generating {
+  padding: 24px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  text-align: center;
+}
+
+.ai-generating-text {
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.ai-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.ai-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent-purple), var(--accent-blue), var(--accent-purple));
+  background-size: 200% 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease;
+  animation: ai-progress-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes ai-progress-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+.ai-progress-percent {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+/* 预览区域 */
+.ai-preview {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.ai-preview-header {
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border-glass);
+}
+
+.ai-preview-label {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+}
+
+.ai-preview-container {
+  padding: 12px;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ai-preview-container iframe {
+  width: 100%;
+  height: 220px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.03);
+}
+
+/* 预览配置 */
+.ai-preview-config {
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-glass);
+}
+
+.ai-config-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.ai-config-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ai-config-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
+.ai-config-input {
+  padding: 7px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-family: var(--font-stack);
+  transition: all var(--transition-fast);
+}
+
+.ai-config-input:focus {
+  outline: none;
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 0 2px rgba(139, 92, 246, 0.1);
+}
+
+.ai-config-select {
+  padding: 7px 10px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-family: var(--font-stack);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/* 操作按钮组 */
+.ai-preview-actions {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-glass);
+}
+
+.ai-action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 14px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  font-family: var(--font-stack);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.ai-action-secondary {
+  background: transparent;
+  border: 1px solid var(--border-glass);
+  color: var(--text-secondary);
+}
+
+.ai-action-secondary:hover {
+  border-color: var(--accent-purple);
+  color: var(--text-primary);
+  background: rgba(139, 92, 246, 0.05);
+}
+
+.ai-action-primary {
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+  border: none;
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(139, 92, 246, 0.25);
+}
+
+.ai-action-primary:hover {
+  box-shadow: 0 4px 15px rgba(139, 92, 246, 0.35);
+  transform: translateY(-1px);
+}
+
+/* 我的生成组件列表 */
+.ai-history-section {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border-glass);
+}
+
+.ai-history-title {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 12px;
+}
+
+.ai-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ai-history-empty {
+  text-align: center;
+  padding: 24px;
+  font-size: 0.82rem;
+  color: var(--text-tertiary);
+}
+
+.ai-history-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.ai-history-item:hover {
+  border-color: rgba(139, 92, 246, 0.3);
+}
+
+.ai-history-item-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.ai-history-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-history-item-name {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ai-history-item-time {
+  font-size: 0.72rem;
+  color: var(--text-tertiary);
+  margin-top: 2px;
+}
+
+.ai-history-item-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.ai-history-btn {
+  padding: 4px 10px;
+  font-size: 0.72rem;
+  font-family: var(--font-stack);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  border: 1px solid var(--border-glass);
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.ai-history-btn:hover {
+  border-color: var(--accent-purple);
+  color: var(--accent-purple);
+}
+
+.ai-history-btn.ai-history-btn-delete:hover {
+  border-color: #f87171;
+  color: #f87171;
+}
+
+/* Toast 提示 */
+.ai-toast {
+  position: fixed;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  padding: 10px 24px;
+  background: rgba(30, 30, 50, 0.95);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  font-family: var(--font-stack);
+  z-index: 10000;
+  opacity: 0;
+  transition: all 0.3s ease;
+  pointer-events: none;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+.ai-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.ai-toast.ai-toast-success {
+  border-color: rgba(74, 222, 128, 0.3);
+}
+
+.ai-toast.ai-toast-error {
+  border-color: rgba(248, 113, 113, 0.3);
+}
+</style>
+</head>
+<body>
+
+<div class="app-container">
+
+  <!-- 时段标签 -->
+  <div class="period-badge" id="periodBadge">
+    <span class="dot"></span>
+    <span id="periodText">加载中...</span>
+  </div>
+
+  <!-- ====== 1. AI 上下文卡片 ====== -->
+  <div class="ai-context-card" id="aiContextCard">
+    <div class="ai-context-header">
+      <div class="ai-context-title">
+        <div class="icon">🧠</div>
+        工作记忆
+      </div>
+      <span class="ai-context-timestamp">5 分钟前更新</span>
+    </div>
+    <div class="ai-context-body">
+      <span class="line">你今天在研究 React 状态管理，我整理了：</span>
+      <span class="line">📌 3 个相关页面摘要</span>
+      <span class="line">🔗 Stack Overflow 上 2 个高赞解决方案</span>
+      <span class="line">📖 1 篇推荐深度文章</span>
+    </div>
+    <div class="ai-context-actions">
+      <button class="btn btn-primary" id="btnViewDetails">查看详情</button>
+      <button class="btn" id="btnDismiss">忽略</button>
+    </div>
+    <div class="ai-context-details" id="contextDetails">
+      <div class="detail-item">
+        <div>
+          <div class="detail-title">React 官方文档 - useState & useReducer</div>
+          <div class="detail-domain">react.dev</div>
+          <div class="detail-summary">详细对比了 useState 和 useReducer 的适用场景，推荐复杂状态逻辑使用 useReducer。</div>
+        </div>
+      </div>
+      <div class="detail-item">
+        <div>
+          <div class="detail-title">Zustand vs Jotai vs Redux Toolkit - 2024 对比</div>
+          <div class="detail-domain">dev.to</div>
+          <div class="detail-summary">从包体积、API 简洁度和性能三个维度对比了主流状态管理库，Zustand 综合得分最高。</div>
+        </div>
+      </div>
+      <div class="detail-item">
+        <div>
+          <div class="detail-title">How to share state between components in React</div>
+          <div class="detail-domain">stackoverflow.com</div>
+          <div class="detail-summary">高赞回答讨论了 Context API、状态提升和第三方库三种方案的最佳实践。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="dismiss-reminder" id="dismissReminder">今天不再提醒</div>
+
+  <!-- ====== 2. AI 对话区 ====== -->
+  <div class="ai-dialog-section">
+    <div class="ai-context-hint">AI 已理解你今天的工作上下文 <span>· React 状态管理</span></div>
+    <div class="dialog-input-wrapper">
+      <input type="text" class="dialog-input" id="dialogInput" placeholder="问我任何问题，或输入指令..." autocomplete="off">
+      <div class="model-selector">
+        <select class="model-select" id="modelSelect">
+          <option value="gpt4o">GPT-4o</option>
+          <option value="deepseek">DeepSeek</option>
+          <option value="claude">Claude</option>
+        </select>
+        <button class="send-btn" id="btnSend">➤</button>
+      </div>
+    </div>
+    <div class="quick-commands">
+      <button class="quick-cmd" data-cmd="总结今天的研究">总结今天的研究</button>
+      <button class="quick-cmd" data-cmd="我接下来该做什么">我接下来该做什么</button>
+      <button class="quick-cmd" data-cmd="整理我的标签页">整理我的标签页</button>
+      <button class="quick-cmd" data-cmd="推荐学习资源">推荐学习资源</button>
+    </div>
+    <div class="ai-response-area">
+      <div class="ai-response" id="aiResponse"></div>
+    </div>
+  </div>
+
+  <!-- ====== 3. 三栏区域 ====== -->
+  <div class="three-columns" id="threeColumns">
+    <!-- 由 JS 动态渲染 -->
+  </div>
+
+  <!-- ====== 4. 底部工具栏 ====== -->
+  <div class="bottom-toolbar">
+    <div class="quick-nav">
+      <a class="nav-icon" title="GitHub">GH</a>
+      <a class="nav-icon" title="YouTube">YT</a>
+      <a class="nav-icon" title="Twitter/X">X</a>
+      <a class="nav-icon" title="Gmail">GM</a>
+      <a class="nav-icon" title="Notion">N</a>
+      <a class="nav-icon" title="ChatGPT">CG</a>
+    </div>
+    <div class="toolbar-right">
+      <button class="nav-icon" id="btnSettings" title="设置">⚙</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ====== 设置面板 ====== -->
+<div class="settings-overlay" id="settingsOverlay"></div>
+<div class="settings-panel" id="settingsPanel">
+  <div class="settings-header">
+    <h2>设置</h2>
+    <button class="settings-close" id="settingsClose">✕</button>
+  </div>
+
+  <!-- 设置标签页导航 -->
+  <div class="settings-tabs">
+    <button class="settings-tab active" data-tab="general">基本设置</button>
+    <button class="settings-tab" data-tab="widgets">小组件</button>
+    <button class="settings-tab" data-tab="layout">布局</button>
+  </div>
+
+  <!-- 基本设置标签页 -->
+  <div class="settings-tab-content active" id="tabGeneral">
+    <div class="settings-group">
+      <div class="settings-group-title">AI 模型</div>
+      <div class="settings-item">
+        <div>
+          <div class="settings-label">默认模型</div>
+          <div class="settings-desc">对话使用的 AI 模型</div>
+        </div>
+        <select class="settings-select" id="settingsModel">
+          <option value="gpt4o">GPT-4o</option>
+          <option value="deepseek">DeepSeek</option>
+          <option value="claude">Claude</option>
+        </select>
+      </div>
+      <div class="settings-item">
+        <div>
+          <div class="settings-label">API Key</div>
+          <div class="settings-desc">用于调用 AI 接口</div>
+        </div>
+        <input type="password" class="settings-input" placeholder="sk-..." id="apiKeyInput">
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <div class="settings-group-title">权限</div>
+      <div class="settings-item">
+        <div>
+          <div class="settings-label">标签页访问权限</div>
+          <div class="settings-desc">允许读取标签页信息以提供上下文</div>
+        </div>
+        <span class="permission-badge granted">● 已授权</span>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <div class="settings-group-title">隐私</div>
+      <div class="settings-item">
+        <div>
+          <div class="settings-label">隐私级别</div>
+          <div class="settings-desc">控制数据存储和处理方式</div>
+        </div>
+        <select class="settings-select" id="privacyLevel">
+          <option value="standard">标准</option>
+          <option value="strict">严格</option>
+          <option value="local">仅本地</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <div class="settings-group-title">外观</div>
+      <div class="settings-item">
+        <div>
+          <div class="settings-label">主题</div>
+          <div class="settings-desc">切换深色/浅色模式</div>
+        </div>
+        <div class="theme-toggle">
+          <button class="theme-option active" data-theme="dark">深色</button>
+          <button class="theme-option" data-theme="light">浅色</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 小组件标签页 -->
+  <div class="settings-tab-content" id="tabWidgets">
+    <div class="widget-market-section">
+      <div class="widget-market-header">
+        <div class="widget-market-title">小组件市场</div>
+        <div class="widget-view-toggle">
+          <button class="widget-view-btn active" data-view="added">已添加</button>
+          <button class="widget-view-btn" data-view="all">全部</button>
+        </div>
+      </div>
+      <div class="widget-grid" id="widgetMarketGrid">
+        <!-- 小组件卡片由 JS 渲染 -->
+      </div>
+    </div>
+
+    <div class="widget-list-section">
+      <div class="widget-list-header">
+        <div class="widget-list-title">已添加的小组件</div>
+        <div class="widget-list-count" id="widgetListCount">拖拽排序</div>
+      </div>
+      <div class="widget-list" id="widgetList">
+        <!-- 已添加列表由 JS 渲染 -->
+      </div>
+    </div>
+
+    <!-- 自定义组件区域 -->
+    <div class="custom-widget-section">
+      <div class="custom-widget-header">
+        <div class="custom-widget-title">自定义组件</div>
+      </div>
+      
+      <!-- 子标签切换 -->
+      <div class="custom-widget-subtabs">
+        <button class="custom-subtab active" data-subtab="create">创建组件</button>
+        <button class="custom-subtab" data-subtab="list">我的组件</button>
+        <button class="custom-subtab" data-subtab="aiworkshop">AI 工坊</button>
+      </div>
+      
+      <!-- 创建组件表单 -->
+      <div class="custom-subtab-content" id="subtabCreate">
+        <div class="custom-widget-form">
+          <!-- 组件类型选择 -->
+          <div class="form-group">
+            <label class="form-label">组件类型</label>
+            <div class="form-radio-group" id="widgetTypeGroup">
+              <label class="form-radio selected" data-type="api">
+                <input type="radio" name="widgetType" value="api" checked>
+                <span>📊 API 数据组件</span>
+              </label>
+              <label class="form-radio" data-type="rss">
+                <input type="radio" name="widgetType" value="rss">
+                <span>📰 RSS 订阅组件</span>
+              </label>
+              <label class="form-radio" data-type="timer">
+                <input type="radio" name="widgetType" value="timer">
+                <span>⏱️ 计时器组件</span>
+              </label>
+            </div>
+          </div>
+          
+          <!-- 基本信息 -->
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">组件名称</label>
+              <input type="text" class="form-input" id="customWidgetName" placeholder="例如：GitHub 贡献">
+            </div>
+            <div class="form-group">
+              <label class="form-label">显示位置</label>
+              <select class="form-select" id="customWidgetColumn">
+                <option value="left">左栏</option>
+                <option value="center">中栏</option>
+                <option value="right" selected>右栏</option>
+              </select>
+            </div>
+          </div>
+          
+          <!-- 图标选择 -->
+          <div class="form-group">
+            <label class="form-label">选择图标</label>
+            <div class="icon-picker" id="iconPicker">
+              <!-- 由 JS 渲染 -->
+            </div>
+          </div>
+          
+          <!-- API 配置 -->
+          <div class="widget-config-section" id="apiConfig">
+            <div class="form-group">
+              <label class="form-label">API URL</label>
+              <input type="text" class="form-input" id="apiUrl" placeholder="https://api.example.com/data">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">请求方式</label>
+                <select class="form-select" id="apiMethod">
+                  <option value="GET">GET</option>
+                  <option value="POST">POST</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">刷新间隔</label>
+                <select class="form-select" id="refreshInterval">
+                  <option value="60000">1 分钟</option>
+                  <option value="300000" selected>5 分钟</option>
+                  <option value="600000">10 分钟</option>
+                  <option value="1800000">30 分钟</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">标题字段</label>
+                <input type="text" class="form-input" id="titleField" placeholder="data.title">
+              </div>
+              <div class="form-group">
+                <label class="form-label">数值字段</label>
+                <input type="text" class="form-input" id="valueField" placeholder="data.value">
+              </div>
+            </div>
+          </div>
+          
+          <!-- RSS 配置 -->
+          <div class="widget-config-section" id="rssConfig" style="display: none;">
+            <div class="form-group">
+              <label class="form-label">RSS URL</label>
+              <input type="text" class="form-input" id="rssUrl" placeholder="https://example.com/feed.xml">
+            </div>
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">显示条数</label>
+                <select class="form-select" id="rssItemCount">
+                  <option value="3">3 条</option>
+                  <option value="5" selected>5 条</option>
+                  <option value="10">10 条</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label">显示摘要</label>
+                <select class="form-select" id="showSummary">
+                  <option value="true" selected>是</option>
+                  <option value="false">否</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 计时器配置 -->
+          <div class="widget-config-section" id="timerConfig" style="display: none;">
+            <div class="form-row">
+              <div class="form-group">
+                <label class="form-label">计时时长（分钟）</label>
+                <input type="number" class="form-input" id="timerDuration" value="25" min="1" max="120">
+              </div>
+              <div class="form-group">
+                <label class="form-label">提醒方式</label>
+                <select class="form-select" id="alertType">
+                  <option value="sound" selected>声音提醒</option>
+                  <option value="notification">系统通知</option>
+                  <option value="both">声音 + 通知</option>
+                </select>
+              </div>
+            </div>
+          </div>
+          
+          <!-- 操作按钮 -->
+          <div class="form-actions">
+            <button class="btn" id="btnPreviewWidget">预览</button>
+            <button class="btn btn-primary" id="btnCreateWidget">创建组件</button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 已创建的组件列表 -->
+      <div class="custom-subtab-content" id="subtabList" style="display: none;">
+        <div class="custom-widget-list" id="customWidgetList">
+          <!-- 由 JS 渲染 -->
+        </div>
+      </div>
+
+      <!-- AI 工坊 -->
+      <div class="custom-subtab-content" id="subtabAiworkshop" style="display: none;">
+        <div class="ai-workshop">
+          <!-- 描述输入区 -->
+          <div class="ai-workshop-input-section">
+            <div class="ai-workshop-title">
+              <span class="ai-workshop-icon">&#x1FA84;</span>
+              <span>用自然语言描述你想要的小组件</span>
+            </div>
+            <textarea class="ai-workshop-textarea" id="aiDescription" rows="3" placeholder="例如：&quot;一个显示当前 BTC 价格的组件，带涨跌颜色&quot;"></textarea>
+
+            <!-- 灵感提示 -->
+            <div class="ai-inspiration">
+              <div class="ai-inspiration-label">&#x1F4A1; 灵感提示（可点击快速填入）：</div>
+              <div class="ai-inspiration-tags" id="aiInspirationTags">
+                <button class="ai-inspiration-tag" data-prompt="显示 GitHub 今日贡献数和 PR 数">显示 GitHub 今日贡献</button>
+                <button class="ai-inspiration-tag" data-prompt="一个倒计时到春节的组件，显示天时分秒">倒计时到春节</button>
+                <button class="ai-inspiration-tag" data-prompt="随机名言卡片，可以换一条">随机名言卡片</button>
+                <button class="ai-inspiration-tag" data-prompt="饮水记录器，显示今日饮水进度和目标">饮水记录器</button>
+                <button class="ai-inspiration-tag" data-prompt="英语单词学习卡片，带音标和例句">单词学习卡片</button>
+                <button class="ai-inspiration-tag" data-prompt="美元兑人民币汇率换算工具">汇率换算工具</button>
+              </div>
+            </div>
+
+            <!-- 生成按钮 -->
+            <button class="ai-generate-btn" id="btnAiGenerate">
+              <span>&#x1FA84;</span> AI 生成组件
+            </button>
+          </div>
+
+          <!-- 生成结果区域 -->
+          <div class="ai-result-section" id="aiResultSection" style="display: none;">
+            <!-- 生成中状态 -->
+            <div class="ai-generating" id="aiGenerating" style="display: none;">
+              <div class="ai-generating-text">&#x23F3; AI 正在生成你的组件... <span id="aiGenTimer">0s</span></div>
+              <div class="ai-progress-bar">
+                <div class="ai-progress-fill" id="aiProgressFill"></div>
+              </div>
+              <div class="ai-progress-percent" id="aiProgressPercent">0%</div>
+            </div>
+
+            <!-- 预览区域 -->
+            <div class="ai-preview" id="aiPreview" style="display: none;">
+              <div class="ai-preview-header">
+                <span class="ai-preview-label">&#x1F50D; 组件预览</span>
+              </div>
+              <div class="ai-preview-container" id="aiPreviewContainer"></div>
+
+              <!-- 配置项 -->
+              <div class="ai-preview-config">
+                <div class="ai-config-row">
+                  <div class="ai-config-item">
+                    <label class="ai-config-label">组件名称</label>
+                    <input type="text" class="ai-config-input" id="aiWidgetName" placeholder="组件名称" />
+                  </div>
+                  <div class="ai-config-item">
+                    <label class="ai-config-label">显示位置</label>
+                    <select class="ai-config-select" id="aiWidgetColumn">
+                      <option value="left">左栏</option>
+                      <option value="center">中栏</option>
+                      <option value="right" selected>右栏</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <!-- 操作按钮 -->
+              <div class="ai-preview-actions">
+                <button class="ai-action-btn ai-action-secondary" id="btnAiRegenerate">
+                  <span>&#x1FA84;</span> 重新生成
+                </button>
+                <button class="ai-action-btn ai-action-secondary" id="btnAiAdjust">
+                  <span>&#x270F;&#xFE0F;</span> 调整描述
+                </button>
+                <button class="ai-action-btn ai-action-primary" id="btnAiAddToHome">
+                  <span>&#x2795;</span> 添加到首页
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 我的生成组件列表 -->
+          <div class="ai-history-section">
+            <div class="ai-history-title">&#x1F4CA; 我生成的组件</div>
+            <div class="ai-history-list" id="aiHistoryList">
+              <div class="ai-history-empty">还没有生成过组件，试试上面的灵感提示吧</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 布局标签页 -->
+  <div class="settings-tab-content" id="tabLayout">
+    <div class="settings-group">
+      <div class="settings-group-title">三栏布局</div>
+      <div class="layout-preview">
+        <div class="layout-preview-label">布局预览</div>
+        <div class="layout-preview-grid">
+          <div class="layout-preview-col">左栏</div>
+          <div class="layout-preview-col">中栏</div>
+          <div class="layout-preview-col">右栏</div>
+        </div>
+      </div>
+      <div class="settings-item">
+        <div>
+          <div class="settings-label">显示比例</div>
+          <div class="settings-desc">三栏区域宽度比例</div>
+        </div>
+        <select class="settings-select" id="columnRatio">
+          <option value="equal">1:1:1 均等</option>
+          <option value="left-heavy">1.5:1:1 左侧优先</option>
+          <option value="right-heavy">1:1:1.5 右侧优先</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="settings-group">
+      <div class="settings-group-title">时段模式</div>
+      <div class="settings-item">
+        <div>
+          <div class="settings-label">时段自适应</div>
+          <div class="settings-desc">根据时间自动切换内容布局</div>
+        </div>
+        <select class="settings-select" id="timePeriodMode">
+          <option value="auto">自动切换</option>
+          <option value="morning">固定早晨模式</option>
+          <option value="work">固定工作模式</option>
+          <option value="evening">固定晚间模式</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ==================== 小组件市场数据 ==================== */
+
+/**
+ * 小组件市场列表
+ * @description 定义所有可用的小组件，包含默认选中状态
+ */
+const widgetMarket = [
+  { id: 'weather', name: '天气', icon: '🌤️', desc: '显示天气和 AI 建议', default: true },
+  { id: 'calendar', name: '日历', icon: '📅', desc: '日期、日程、AI 提醒', default: true },
+  { id: 'trending', name: '热搜/资讯', icon: '🔥', desc: '全网热搜、技术资讯、AI 推荐', default: true },
+  { id: 'memory', name: '工作记忆', icon: '🧠', desc: 'AI 整理的今日浏览摘要', default: true },
+  { id: 'todo', name: '待办清单', icon: '✅', desc: '任务管理', default: true },
+  { id: 'pomodoro', name: '番茄钟', icon: '🍅', desc: '专注计时器', default: true },
+  { id: 'habits', name: '习惯打卡', icon: '🎯', desc: '每日习惯追踪', default: true },
+  { id: 'knowledge', name: '知识卡片', icon: '💡', desc: '每日一词/一知', default: true },
+  { id: 'reading', name: '阅读队列', icon: '📖', desc: '稍后阅读列表', default: false },
+  { id: 'shortcuts', name: '快捷导航', icon: '🚀', desc: '常用网站快速访问', default: true },
+  { id: 'stats', name: '专注统计', icon: '📊', desc: '专注时长统计图表', default: false },
+  { id: 'aiInsight', name: 'AI 洞察', icon: '✨', desc: '基于工作记忆的洞察和建议', default: false },
+  { id: 'countdown', name: '倒计时', icon: '⏰', desc: '重要日期倒计时', default: false },
+  { id: 'notes', name: '便签', icon: '📝', desc: '快速记录想法', default: false },
+  { id: 'bookmarks', name: '书签管理', icon: '🔖', desc: '浏览器书签快捷访问', default: false }
+];
+
+/* ==================== 自定义小组件数据结构 ==================== */
+
+/**
+ * 自定义小组件列表
+ * @type {Array}
+ */
+let customWidgets = [];
+
+/**
+ * 自定义组件表单状态
+ */
+let customWidgetForm = {
+  type: 'api',
+  name: '',
+  icon: '📊',
+  column: 'right',
+  // API 配置
+  apiUrl: '',
+  apiMethod: 'GET',
+  refreshInterval: 300000,
+  titleField: 'data.title',
+  valueField: 'data.value',
+  // RSS 配置
+  rssUrl: '',
+  itemCount: 5,
+  showSummary: true,
+  // 计时器配置
+  timerDuration: 25,
+  alertType: 'sound'
+};
+
+/**
+ * 可选图标列表
+ */
+const availableIcons = ['📊', '📈', '📉', '⏱️', '📋', '📰', '🔔', '💡', '🎯', '📝', '🔗', '🎵', '🎬', '🎮', '💻', '📱'];
+
+/**
+ * 从 localStorage 加载自定义小组件
+ */
+function loadCustomWidgets() {
+  try {
+    const saved = localStorage.getItem('mindtab_custom_widgets');
+    if (saved) {
+      customWidgets = JSON.parse(saved);
+    }
+  } catch (e) {
+    console.warn('加载自定义小组件失败', e);
+    customWidgets = [];
+  }
+}
+
+/**
+ * 保存自定义小组件到 localStorage
+ */
+function saveCustomWidgets() {
+  try {
+    localStorage.setItem('mindtab_custom_widgets', JSON.stringify(customWidgets));
+  } catch (e) {
+    console.warn('保存自定义小组件失败', e);
+  }
+}
+
+/**
+ * 生成唯一 ID
+ * @returns {string}
+ */
+function generateWidgetId() {
+  return 'custom_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
+/**
+ * 创建自定义小组件
+ * @param {Object} widgetData - 小组件数据
+ * @returns {Object} 创建的小组件
+ */
+function createCustomWidget(widgetData) {
+  const widget = {
+    id: generateWidgetId(),
+    type: widgetData.type,
+    name: widgetData.name,
+    icon: widgetData.icon,
+    column: widgetData.column || 'right',
+    config: {},
+    createdAt: Date.now()
+  };
+  
+  // 根据类型设置配置
+  switch (widgetData.type) {
+    case 'api':
+      widget.config = {
+        url: widgetData.apiUrl,
+        method: widgetData.apiMethod,
+        refreshInterval: widgetData.refreshInterval,
+        dataMapping: {
+          title: widgetData.titleField,
+          value: widgetData.valueField
+        }
+      };
+      break;
+    case 'rss':
+      widget.config = {
+        url: widgetData.rssUrl,
+        itemCount: widgetData.itemCount,
+        showSummary: widgetData.showSummary
+      };
+      break;
+    case 'timer':
+      widget.config = {
+        duration: widgetData.timerDuration,
+        alertType: widgetData.alertType
+      };
+      break;
+  }
+  
+  customWidgets.push(widget);
+  saveCustomWidgets();
+  
+  // 自动添加到激活列表
+  addWidget(widget.id);
+  
+  return widget;
+}
+
+/**
+ * 更新自定义小组件
+ * @param {string} widgetId - 小组件 ID
+ * @param {Object} widgetData - 更新的数据
+ */
+function updateCustomWidget(widgetId, widgetData) {
+  const index = customWidgets.findIndex(w => w.id === widgetId);
+  if (index !== -1) {
+    customWidgets[index] = { ...customWidgets[index], ...widgetData, updatedAt: Date.now() };
+    saveCustomWidgets();
+    renderCustomWidgetList();
+    renderThreeColumns();
+  }
+}
+
+/**
+ * 删除自定义小组件
+ * @param {string} widgetId - 小组件 ID
+ */
+function deleteCustomWidget(widgetId) {
+  // 从自定义列表中移除
+  customWidgets = customWidgets.filter(w => w.id !== widgetId);
+  saveCustomWidgets();
+  
+  // 从激活列表中移除
+  removeWidget(widgetId);
+  
+  renderCustomWidgetList();
+}
+
+/**
+ * 获取指定栏的自定义组件内容
+ * @param {string} column - 栏位 ('left' | 'center' | 'right')
+ * @returns {string} HTML 字符串
+ */
+function getCustomWidgetsForColumn(column) {
+  return customWidgets
+    .filter(w => w.column === column && isWidgetActive(w.id))
+    .map(w => renderCustomWidget(w))
+    .join('');
+}
+
+/**
+ * 根据 ID 渲染自定义组件
+ * @param {string} widgetId - 组件 ID
+ * @returns {string} HTML 字符串
+ */
+function renderCustomWidgetById(widgetId) {
+  const widget = customWidgets.find(w => w.id === widgetId);
+  if (!widget) return '';
+  return renderCustomWidget(widget);
+}
+
+/**
+ * 渲染自定义组件
+ * @param {Object} widget - 组件配置
+ * @returns {string} HTML 字符串
+ */
+function renderCustomWidget(widget) {
+  switch (widget.type) {
+    case 'api':
+      return renderApiWidget(widget);
+    case 'rss':
+      return renderRssWidget(widget);
+    case 'timer':
+      return renderTimerWidget(widget);
+    default:
+      return '';
+  }
+}
+
+/**
+ * 渲染 API 数据组件
+ * @param {Object} widget - 组件配置
+ * @returns {string} HTML 字符串
+ */
+function renderApiWidget(widget) {
+  return `
+    <div class="custom-widget api-widget" data-widget-id="${widget.id}">
+      <div class="module-title">
+        <span class="module-icon">${widget.icon}</span> ${widget.name}
+        <span class="widget-loading-indicator" id="loading_${widget.id}"></span>
+      </div>
+      <div class="api-widget-content" id="content_${widget.id}">
+        <div class="widget-skeleton">
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line short"></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * 渲染 RSS 订阅组件
+ * @param {Object} widget - 组件配置
+ * @returns {string} HTML 字符串
+ */
+function renderRssWidget(widget) {
+  return `
+    <div class="custom-widget rss-widget" data-widget-id="${widget.id}">
+      <div class="module-title">
+        <span class="module-icon">${widget.icon}</span> ${widget.name}
+      </div>
+      <div class="rss-widget-content" id="content_${widget.id}">
+        <div class="widget-skeleton">
+          <div class="skeleton-line"></div>
+          <div class="skeleton-line short"></div>
+          <div class="skeleton-line"></div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * 渲染计时器组件
+ * @param {Object} widget - 组件配置
+ * @returns {string} HTML 字符串
+ */
+function renderTimerWidget(widget) {
+  const duration = widget.config.duration || 25;
+  return `
+    <div class="custom-widget timer-widget" data-widget-id="${widget.id}">
+      <div class="module-title">
+        <span class="module-icon">${widget.icon}</span> ${widget.name}
+      </div>
+      <div class="custom-timer-container">
+        <div class="custom-timer-display" id="timer_${widget.id}">${String(duration).padStart(2, '0')}:00</div>
+        <div class="custom-timer-controls">
+          <button class="btn btn-sm custom-timer-start" data-widget-id="${widget.id}">开始</button>
+          <button class="btn btn-sm custom-timer-reset" data-widget-id="${widget.id}">重置</button>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * 模拟加载 API 数据
+ * @param {Object} widget - 组件配置
+ */
+function loadApiWidgetData(widget) {
+  const contentEl = document.getElementById(`content_${widget.id}`);
+  if (!contentEl) return;
+  
+  // 模拟 API 响应
+  setTimeout(() => {
+    const mockData = {
+      title: 'GitHub 贡献',
+      value: Math.floor(Math.random() * 20) + 5 + ' 次提交'
+    };
+    
+    contentEl.innerHTML = `
+      <div class="api-data-card">
+        <div class="api-data-title">${mockData.title}</div>
+        <div class="api-data-value">${mockData.value}</div>
+        <div class="api-data-updated">更新于 ${new Date().toLocaleTimeString()}</div>
+      </div>
+    `;
+  }, 1000);
+}
+
+/**
+ * 模拟加载 RSS 数据
+ * @param {Object} widget - 组件配置
+ */
+function loadRssWidgetData(widget) {
+  const contentEl = document.getElementById(`content_${widget.id}`);
+  if (!contentEl) return;
+  
+  // 模拟 RSS 响应
+  setTimeout(() => {
+    const mockItems = [
+      { title: 'React 19 正式发布，引入新特性', link: '#' },
+      { title: 'TypeScript 5.4 带来性能提升', link: '#' },
+      { title: 'Node.js 22 LTS 发布', link: '#' },
+      { title: 'Vite 6.0 构建速度提升 40%', link: '#' },
+      { title: 'Deno 2.0 发布', link: '#' }
+    ];
+    
+    const items = mockItems.slice(0, widget.config.itemCount || 5);
+    
+    contentEl.innerHTML = `
+      <div class="rss-items">
+        ${items.map((item, i) => `
+          <a href="${item.link}" class="rss-item" target="_blank">
+            <span class="rss-item-rank">${i + 1}</span>
+            <span class="rss-item-title">${item.title}</span>
+          </a>
+        `).join('')}
+      </div>
+    `;
+  }, 1000);
+}
+
+/* ==================== 小组件配置状态 ==================== */
+
+/**
+ * 小组件配置状态
+ * @property {string[]} activeWidgets - 已激活的小组件 ID 列表
+ * @property {string[]} widgetOrder - 小组件排序顺序
+ */
+let widgetConfig = {
+  activeWidgets: [],
+  widgetOrder: []
+};
+
+/**
+ * 当前设置的标签页
+ * @type {'general' | 'widgets' | 'layout'}
+ */
+let settingsActiveTab = 'general';
+
+/**
+ * 小组件市场的当前视图
+ * @type {'added' | 'all'}
+ */
+let widgetMarketView = 'added';
+
+/* ==================== 小组件配置加载与保存 ==================== */
+
+/**
+ * 从 localStorage 加载小组件配置
+ */
+function loadWidgetConfig() {
+  try {
+    const saved = localStorage.getItem('mindtab_widget_config');
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      widgetConfig.activeWidgets = parsed.activeWidgets || [];
+      widgetConfig.widgetOrder = parsed.widgetOrder || [];
+    } else {
+      // 使用默认值初始化
+      initDefaultWidgets();
+    }
+  } catch (e) {
+    console.warn('加载小组件配置失败，使用默认值', e);
+    initDefaultWidgets();
+  }
+}
+
+/**
+ * 初始化默认小组件配置
+ */
+function initDefaultWidgets() {
+  // 获取所有默认选中的小组件
+  widgetConfig.activeWidgets = widgetMarket
+    .filter(w => w.default)
+    .map(w => w.id);
+  // 默认顺序与定义顺序一致
+  widgetConfig.widgetOrder = [...widgetConfig.activeWidgets];
+}
+
+/**
+ * 保存小组件配置到 localStorage
+ */
+function saveWidgetConfig() {
+  try {
+    localStorage.setItem('mindtab_widget_config', JSON.stringify(widgetConfig));
+  } catch (e) {
+    console.warn('保存小组件配置失败', e);
+  }
+}
+
+/**
+ * 检查小组件是否已激活
+ * @param {string} widgetId - 小组件 ID
+ * @returns {boolean}
+ */
+function isWidgetActive(widgetId) {
+  return widgetConfig.activeWidgets.includes(widgetId);
+}
+
+/**
+ * 添加小组件
+ * @param {string} widgetId - 小组件 ID
+ */
+function addWidget(widgetId) {
+  if (!isWidgetActive(widgetId)) {
+    widgetConfig.activeWidgets.push(widgetId);
+    widgetConfig.widgetOrder.push(widgetId);
+    saveWidgetConfig();
+    renderWidgetMarket();
+    renderWidgetList();
+    // 实时更新三栏布局
+    renderThreeColumns();
+  }
+}
+
+/**
+ * 移除小组件
+ * @param {string} widgetId - 小组件 ID
+ */
+function removeWidget(widgetId) {
+  widgetConfig.activeWidgets = widgetConfig.activeWidgets.filter(id => id !== widgetId);
+  widgetConfig.widgetOrder = widgetConfig.widgetOrder.filter(id => id !== widgetId);
+  saveWidgetConfig();
+  renderWidgetMarket();
+  renderWidgetList();
+  // 实时更新三栏布局
+  renderThreeColumns();
+}
+
+/* ==================== 天气数据 ==================== */
+
+const weatherData = {
+  city: '北京',
+  temp: 22,
+  condition: '多云',
+  icon: '⛅',
+  high: 26,
+  low: 15,
+  aqi: 45,
+  aqiLevel: '优',
+  advice: '今天空气质量优，适合户外运动'
+};
+
+/* 日历数据 */
+const calendarData = {
+  date: '5月8日',
+  weekday: '星期四',
+  lunar: '四月十一',
+  events: [
+    { time: '10:00', title: '产品评审会' },
+    { time: '14:00', title: '代码审查' },
+    { time: '16:30', title: '团队周会' }
+  ],
+  aiReminder: '你收藏了一篇关于 React 的文章，今天下午有空可以阅读'
+};
+
+/* 热搜数据 */
+const trendingData = {
+  hot: [
+    { rank: 1, title: '某科技公司发布新款 AI 芯片', heat: '沸' },
+    { rank: 2, title: '五一假期旅游数据出炉', heat: '热' },
+    { rank: 3, title: '新能源汽车销量创新高', heat: '热' },
+    { rank: 4, title: '某明星新剧开播', heat: '新' },
+    { rank: 5, title: '股市今日行情', heat: '新' }
+  ],
+  tech: [
+    { title: 'React 19 新特性详解', source: 'GitHub' },
+    { title: 'OpenAI 发布 GPT-5 预览', source: 'TechCrunch' },
+    { title: 'Chrome 扩展开发最佳实践', source: 'MDN' },
+    { title: 'Rust 1.78 发布', source: 'Rust Blog' },
+    { title: 'AI 编程助手对比评测', source: 'InfoQ' }
+  ],
+  aiRecommended: [
+    { title: 'React 状态管理最佳实践', reason: '基于你最近的浏览' },
+    { title: 'TypeScript 5.0 新特性', reason: '与你收藏的内容相关' },
+    { title: '前端性能优化指南', reason: '你关注的话题' },
+    { title: 'AI 辅助编程工具对比', reason: '热门技术趋势' },
+    { title: 'WebAssembly 入门教程', reason: '可能对你有用' }
+  ]
+};
+
+/* 工作记忆 - 最近浏览的页面 */
+const memoryPages = [
+  { title: 'React 官方文档 - useState & useReducer', domain: 'react.dev', summary: '详细对比了 useState 和 useReducer 的适用场景，推荐复杂状态逻辑使用 useReducer。' },
+  { title: 'Zustand vs Jotai vs Redux Toolkit - 2024 对比', domain: 'dev.to', summary: '从包体积、API 简洁度和性能三个维度对比了主流状态管理库。' },
+  { title: 'How to share state between components in React', domain: 'stackoverflow.com', summary: '高赞回答讨论了 Context API、状态提升和第三方库三种方案的最佳实践。' }
+];
+
+/* 日程数据 */
+const scheduleData = [
+  { time: '09:30', title: '团队站会 - Sprint 回顾' },
+  { time: '11:00', title: '代码评审 - 状态管理重构 PR' },
+  { time: '14:00', title: '1:1 与技术主管' }
+];
+
+/* 待办数据 */
+let todos = [
+  { text: '完成状态管理方案对比文档', done: false },
+  { text: '重构 CartContext 为 Zustand store', done: false },
+  { text: '编写单元测试覆盖 useReducer 逻辑', done: false }
+];
+
+/* 相关资料 */
+const relatedResources = [
+  { title: 'React Server Components 与状态管理的未来', source: 'react.dev/blog', reason: '与你正在研究的客户端状态管理密切相关' },
+  { title: 'Zustand 2.0 新特性详解', source: 'pmnd.rs', reason: '你浏览的对比文章中 Zustand 得分最高' },
+  { title: '大型 React 应用状态架构实战', source: 'medium.com', reason: '包含多个企业级状态管理案例' }
+];
+
+/* 新闻摘要 */
+const newsData = [
+  { title: 'React 19 正式发布', summary: '引入服务端组件和全新编译器，性能提升显著。' },
+  { title: 'Vite 6.0 发布', summary: '构建速度提升 40%，新增环境变量加密功能。' },
+  { title: 'TypeScript 5.4 新特性', summary: '新增 NoInfer 工具类型和改进的类型收窄。' }
+];
+
+/* 知识卡片 - 10 条 */
+const knowledgeCards = [
+  { term: 'React Fiber', desc: 'React 16 引入的新的协调引擎，支持增量渲染、优先级调度和并发模式。' },
+  { term: 'Virtual DOM', desc: 'React 在内存中维护的轻量级 DOM 副本，通过 diff 算法最小化实际 DOM 操作。' },
+  { term: 'HOC (高阶组件)', desc: '一种组件复用模式，函数接收组件并返回新组件，类似装饰器模式。' },
+  { term: 'React.memo', desc: '高阶组件，对 props 进行浅比较来避免不必要的重新渲染。' },
+  { term: 'useCallback', desc: '缓存函数引用的 Hook，避免子组件因函数引用变化而重新渲染。' },
+  { term: 'useMemo', desc: '缓存计算结果的 Hook，在依赖不变时跳过昂贵的重新计算。' },
+  { term: 'Suspense', desc: 'React 的异步加载机制，可优雅处理组件树中的加载状态。' },
+  { term: 'React Server Components', desc: '在服务端渲染的组件，不包含客户端 JS，可减少客户端包体积。' },
+  { term: 'Zustand', desc: '极简的 React 状态管理库，基于不可变状态和订阅模型，API 简洁。' },
+  { term: 'Jotai', desc: '原子化状态管理库，灵感来自 Recoil，每个状态单元独立管理。' }
+];
+
+/* 阅读队列 */
+const readingQueue = [
+  { title: '深入理解 React Concurrent Mode', meta: 'Dan Abramov · 15 分钟阅读' },
+  { title: '状态管理终局之战：2024 全景分析', meta: 'TechCrunch · 12 分钟阅读' },
+  { title: '从 Redux 到 Zustand：迁移实战指南', meta: 'LogRocket · 20 分钟阅读' }
+];
+
+/* 习惯打卡 */
+let habits = [
+  { icon: '📖', name: '阅读 30 分钟', checked: false },
+  { icon: '🏃', name: '运动锻炼', checked: false },
+  { icon: '🧘', name: '冥想练习', checked: false }
+];
+
+/* 今日回顾 */
+const reviewData = [
+  { label: '打开标签页', value: '23 个' },
+  { label: '收藏页面', value: '5 个' },
+  { label: '专注时间', value: '3 小时 42 分' },
+  { label: 'AI 对话', value: '12 次' }
+];
+
+/* 学习推荐 */
+const learningResources = [
+  { title: 'Epic React - 状态管理模块', source: 'kentcdodds.com' },
+  { title: 'React 状态管理设计模式', source: 'frontendmasters.com' },
+  { title: '现代 React 全栈开发', source: 'udemy.com' }
+];
+
+/* 明日规划 */
+const tomorrowPlans = [
+  '完成 Zustand 迁移方案的 POC',
+  '准备周五技术分享的幻灯片',
+  'Review 团队新成员的 PR'
+];
+
+/* AI 预设回复 */
+const aiResponses = {
+  '总结今天的研究': `根据你今天的工作记忆，你主要围绕 **React 状态管理** 进行了深入研究：
+
+📌 **核心发现**：
+- 你浏览了 React 官方关于 useState 和 useReducer 的对比文档，了解到复杂状态逻辑应优先使用 useReducer
+- 在 dev.io 上阅读了 Zustand vs Jotai vs Redux Toolkit 的对比，Zustand 在包体积和 API 简洁度上表现最佳
+- Stack Overflow 上关于组件间状态共享的讨论，Context API 适合中等复杂度场景
+
+🔗 **建议下一步**：
+1. 针对你的 CartContext 重构，Zustand 是最佳选择
+2. 建议先做一个小型 POC 验证迁移成本
+3. 可以参考你收藏的「从 Redux 到 Zustand 迁移指南」`,
+
+  '我接下来该做什么': `基于你的工作记忆和当前时间，我建议：
+
+🎯 **现在（优先级最高）**：
+完成「状态管理方案对比文档」—— 你已经收集了足够的资料（3 个页面摘要 + 2 个 Stack Overflow 方案），现在是将信息整合成文档的最佳时机。
+
+⏰ **接下来 1 小时**：
+开始 CartContext 到 Zustand 的 POC 迁移，你已经在对比文章中确认了 Zustand 是最优选。
+
+📋 **今天剩余时间**：
+- 编写单元测试（你有待办项）
+- 准备明天 11:00 的代码评审
+
+💡 **提醒**：明天 14:00 有 1:1 与技术主管，建议今天把状态管理方案整理好，可以作为讨论素材。`,
+
+  '整理我的标签页': `我分析了你当前打开的标签页，建议如下：
+
+✅ **可以关闭（5 个）**：
+- 2 个重复的 React 文档页面（react.dev）
+- 1 个已解决的 Stack Overflow 问答
+- 2 个昨天的新闻页面
+
+📁 **建议归档（3 个）**：
+- Zustand 官方文档 → 归入「状态管理研究」
+- TypeScript 5.4 发布说明 → 归入「技术追踪」
+- 那篇 Medium 文章 → 归入「待阅读」
+
+📌 **保留（核心工作）**：
+- 你正在编辑的代码编辑器标签页
+- 代码评审相关的 PR 页面
+- 团队 Wiki 的 Sprint 看板
+
+需要我帮你执行这些操作吗？`,
+
+  '推荐学习资源': `基于你今天的研究主题（React 状态管理），我为你精选了以下资源：
+
+📚 **深度学习**：
+1. **Epic React - 状态管理模块** (kentcdodds.com)
+   Kent C. Dodds 的付费课程，系统讲解 React 状态管理模式
+
+2. **React 状态管理设计模式** (frontendmasters.com)
+   涵盖 Context、Reducer、外部状态库的企业级实践
+
+🆓 **免费资源**：
+3. **现代 React 全栈开发** (udemy.com)
+   包含 Zustand、Jotai 等新库的实战项目
+
+📖 **延伸阅读**：
+4. 你之前收藏的「从 Redux 到 Zustand 迁移指南」还未阅读，建议优先阅读
+
+这些资源与你当前的工作任务直接相关，学习后可以立即应用到重构项目中。`,
+
+  'default': `我理解你的问题。结合你今天的工作上下文（React 状态管理研究），让我来帮你分析。
+
+你今天已经浏览了 3 个相关页面，涵盖了 useState/useReducer 对比、主流状态库比较、以及组件间状态共享方案。这些信息足以支撑你的方案决策。
+
+如果你需要更具体的帮助，可以试试：
+- 「总结今天的研究」- 查看完整的研究摘要
+- 「我接下来该做什么」- 获取智能任务推荐
+- 「推荐学习资源」- 获取个性化学习建议`
+};
+
+/* ==================== 小组件渲染函数 ==================== */
+
+/**
+ * 渲染天气组件
+ * @returns {string} HTML 字符串
+ */
+function renderWeatherWidget() {
+  const aqiClass = weatherData.aqi <= 50 ? '' : (weatherData.aqi <= 100 ? 'moderate' : 'poor');
+  return `
+    <div class="weather-widget" id="weatherWidget">
+      <div class="weather-header">
+        <div class="weather-city">📍 ${weatherData.city}</div>
+        <div class="weather-aqi ${aqiClass}">AQI ${weatherData.aqi} ${weatherData.aqiLevel}</div>
+      </div>
+      <div class="weather-main">
+        <div class="weather-icon">${weatherData.icon}</div>
+        <div>
+          <div class="weather-temp">${weatherData.temp}°</div>
+          <div class="weather-condition">${weatherData.condition}</div>
+          <div class="weather-range">${weatherData.low}° / ${weatherData.high}°</div>
+        </div>
+      </div>
+      <div class="weather-advice">💡 ${weatherData.advice}</div>
+    </div>
+  `;
+}
+
+/**
+ * 渲染日历组件
+ * @returns {string} HTML 字符串
+ */
+function renderCalendarWidget() {
+  return `
+    <div class="calendar-widget" id="calendarWidget">
+      <div class="calendar-date-section">
+        <div class="calendar-month-day">${calendarData.date}</div>
+        <div class="calendar-weekday">${calendarData.weekday}</div>
+        <div class="calendar-lunar">农历 ${calendarData.lunar}</div>
+      </div>
+      <div class="calendar-events">
+        ${calendarData.events.map(e => `
+          <div class="calendar-event-item">
+            <span class="calendar-event-time">${e.time}</span>
+            <span class="calendar-event-title">${e.title}</span>
+          </div>
+        `).join('')}
+      </div>
+      <div class="calendar-ai-reminder">🤖 ${calendarData.aiReminder}</div>
+    </div>
+  `;
+}
+
+/**
+ * 渲染热搜组件
+ * @param {string} defaultTab - 默认标签 ('hot' | 'tech' | 'ai')
+ * @returns {string} HTML 字符串
+ */
+function renderTrendingWidget(defaultTab = 'hot') {
+  return `
+    <div class="trending-widget">
+      <div class="trending-tabs">
+        <button class="trending-tab ${defaultTab === 'hot' ? 'active' : ''}" data-tab="hot">全网热搜</button>
+        <button class="trending-tab ${defaultTab === 'tech' ? 'active' : ''}" data-tab="tech">技术资讯</button>
+        <button class="trending-tab ${defaultTab === 'ai' ? 'active' : ''}" data-tab="ai">AI 推荐</button>
+      </div>
+      <div class="trending-list" id="trendingList">
+        ${renderTrendingContent(defaultTab)}
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * 渲染热搜内容
+ * @param {string} tab - 当前标签
+ * @returns {string} HTML 字符串
+ */
+function renderTrendingContent(tab) {
+  if (tab === 'hot') {
+    return trendingData.hot.map(item => {
+      const heatClass = item.heat === '沸' ? 'hot' : (item.heat === '热' ? 'warm' : 'new');
+      return `
+        <div class="trending-item">
+          <div class="trending-rank ${item.rank <= 3 ? 'top3' : ''}">${item.rank}</div>
+          <div class="trending-title">${item.title}</div>
+          <div class="trending-heat ${heatClass}">${item.heat}</div>
+        </div>
+      `;
+    }).join('');
+  } else if (tab === 'tech') {
+    return trendingData.tech.map(item => `
+      <div class="trending-tech-item">
+        <div class="trending-tech-title">${item.title}</div>
+        <div class="trending-tech-source">${item.source}</div>
+      </div>
+    `).join('');
+  } else {
+    return trendingData.aiRecommended.map(item => `
+      <div class="trending-ai-item">
+        <div class="trending-ai-title">${item.title}</div>
+        <div class="trending-ai-reason">${item.reason}</div>
+      </div>
+    `).join('');
+  }
+}
+
+/* ==================== 时段判断与渲染 ==================== */
+
+/**
+ * 根据小组件 ID 渲染对应的模块内容
+ * @param {string} widgetId - 小组件 ID
+ * @returns {string} HTML 字符串，如果组件未启用则返回空字符串
+ */
+function renderWidgetById(widgetId) {
+  // 检查组件是否启用
+  if (!isWidgetActive(widgetId)) {
+    return '';
+  }
+  
+  // 根据组件 ID 调用对应的渲染函数
+  switch (widgetId) {
+    case 'weather':
+      return renderWeatherWidget();
+    case 'calendar':
+      return renderCalendarWidget();
+    case 'trending':
+      return renderTrendingWidget('hot');
+    case 'memory':
+      return renderMemoryModule();
+    case 'todo':
+      return renderTodoModule();
+    case 'pomodoro':
+      return renderPomodoroModule();
+    case 'habits':
+      return renderHabitsModule();
+    case 'knowledge':
+      return renderKnowledgeModule();
+    case 'reading':
+      return renderReadingModule();
+    case 'shortcuts':
+      return renderShortcutsModule();
+    case 'stats':
+      return renderStatsModule();
+    case 'aiInsight':
+      return renderAiInsightModule();
+    case 'countdown':
+      return renderCountdownModule();
+    case 'notes':
+      return renderNotesModule();
+    case 'bookmarks':
+      return renderBookmarksModule();
+    // 额外模块
+    case 'schedule':
+      return renderScheduleModule();
+    case 'resources':
+      return renderResourcesModule();
+    case 'review':
+      return renderReviewModule();
+    case 'learning':
+      return renderLearningModule();
+    case 'relax':
+      return renderRelaxModule();
+    case 'sleep':
+      return renderSleepModule();
+    case 'plans':
+      return renderPlansModule();
+    default:
+      // 检查是否为自定义组件
+      if (widgetId.startsWith('custom_')) {
+        return renderCustomWidgetById(widgetId);
+      }
+      return '';
+  }
+}
+
+/**
+ * 渲染番茄钟独立模块
+ * @returns {string} HTML 字符串
+ */
+function renderPomodoroModule() {
+  return `
+    <div class="module-title"><span class="module-icon">🍅</span> 番茄钟</div>
+    <div class="pomodoro">
+      <div class="pomodoro-time" id="pomodoroTime">25:00</div>
+      <div class="pomodoro-controls">
+        <button class="btn btn-sm" id="btnPomodoroStart">开始</button>
+        <button class="btn btn-sm" id="btnPomodoroReset">重置</button>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * 渲染快捷导航模块
+ * @returns {string} HTML 字符串
+ */
+function renderShortcutsModule() {
+  const shortcuts = [
+    { icon: '📧', name: 'Gmail', url: 'https://mail.google.com' },
+    { icon: '💬', name: '微信', url: 'https://web.wechat.com' },
+    { icon: '📱', name: 'GitHub', url: 'https://github.com' },
+    { icon: '📝', name: 'Notion', url: 'https://notion.so' },
+    { icon: '📊', name: 'Figma', url: 'https://figma.com' }
+  ];
+  return `
+    <div class="module-title"><span class="module-icon">🚀</span> 快捷导航</div>
+    <div class="shortcuts-grid">
+      ${shortcuts.map(s => `
+        <a href="${s.url}" target="_blank" class="shortcut-item">
+          <span class="shortcut-icon">${s.icon}</span>
+          <span class="shortcut-name">${s.name}</span>
+        </a>
+      `).join('')}
+    </div>
+  `;
+}
+
+/**
+ * 渲染专注统计模块
+ * @returns {string} HTML 字符串
+ */
+function renderStatsModule() {
+  return `
+    <div class="module-title"><span class="module-icon">📊</span> 专注统计</div>
+    <div class="stats-container">
+      <div class="stat-item">
+        <div class="stat-value">4.5h</div>
+        <div class="stat-label">今日专注</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">12</div>
+        <div class="stat-label">完成任务</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-value">8</div>
+        <div class="stat-label">番茄钟</div>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * 渲染 AI 洞察模块
+ * @returns {string} HTML 字符串
+ */
+function renderAiInsightModule() {
+  return `
+    <div class="module-title"><span class="module-icon">✨</span> AI 洞察</div>
+    <div class="ai-insight-card">
+      <div class="ai-insight-content">
+        基于你今天的浏览记录，建议关注 React 18 的并发特性，这与你的状态管理研究密切相关。
+      </div>
+      <div class="ai-insight-actions">
+        <button class="btn btn-sm">了解更多</button>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * 渲染倒计时模块
+ * @returns {string} HTML 字符串
+ */
+function renderCountdownModule() {
+  return `
+    <div class="module-title"><span class="module-icon">⏰</span> 倒计时</div>
+    <div class="countdown-card">
+      <div class="countdown-event">周末</div>
+      <div class="countdown-time">2 天 5 小时</div>
+    </div>
+  `;
+}
+
+/**
+ * 渲染便签模块
+ * @returns {string} HTML 字符串
+ */
+function renderNotesModule() {
+  return `
+    <div class="module-title"><span class="module-icon">📝</span> 便签</div>
+    <div class="notes-container">
+      <textarea class="notes-textarea" placeholder="快速记录想法..."></textarea>
+    </div>
+  `;
+}
+
+/**
+ * 渲染书签管理模块
+ * @returns {string} HTML 字符串
+ */
+function renderBookmarksModule() {
+  return `
+    <div class="module-title"><span class="module-icon">🔖</span> 书签管理</div>
+    <div class="bookmarks-list">
+      <div class="bookmark-item">📁 开发工具</div>
+      <div class="bookmark-item">📁 学习资源</div>
+      <div class="bookmark-item">📁 设计灵感</div>
+    </div>
+  `;
+}
+
+/**
+ * 获取当前时段信息
+ * @returns {Object} 时段名称、emoji、三栏配置
+ */
+function getTimePeriod() {
+  const hour = new Date().getHours();
+  
+  // 定义各时段的默认组件配置
+  const periodConfigs = {
+    morning: { // 6-9点 早晨
+      label: '早晨模式',
+      emoji: '🌅',
+      leftWidgets: ['calendar', 'memory'],
+      centerWidgets: ['trending'],
+      rightWidgets: ['weather', 'habits']
+    },
+    workAM: { // 9-12点 上午工作
+      label: '上午工作模式',
+      emoji: '🧠',
+      leftWidgets: ['calendar', 'memory'],
+      centerWidgets: ['todo', 'pomodoro'],
+      rightWidgets: ['weather', 'trending']
+    },
+    noon: { // 12-14点 午休
+      label: '午休模式',
+      emoji: '☕',
+      leftWidgets: ['calendar'],
+      centerWidgets: ['reading', 'knowledge'],
+      rightWidgets: ['weather', 'trending']
+    },
+    workPM: { // 14-18点 下午工作
+      label: '下午工作模式',
+      emoji: '💼',
+      leftWidgets: ['calendar', 'memory'],
+      centerWidgets: ['todo', 'pomodoro'],
+      rightWidgets: ['weather', 'stats']
+    },
+    evening: { // 18-22点 晚间
+      label: '晚间模式',
+      emoji: '🌙',
+      leftWidgets: ['calendar'],
+      centerWidgets: ['knowledge', 'trending'],
+      rightWidgets: ['weather', 'plans']
+    },
+    night: { // 22-6点 深夜
+      label: '深夜模式',
+      emoji: '🌌',
+      leftWidgets: ['calendar'],
+      centerWidgets: ['relax'],
+      rightWidgets: ['weather', 'sleep']
+    }
+  };
+  
+  // 根据时间选择时段配置
+  let periodConfig;
+  if (hour >= 6 && hour < 9) {
+    periodConfig = periodConfigs.morning;
+  } else if (hour >= 9 && hour < 12) {
+    periodConfig = periodConfigs.workAM;
+  } else if (hour >= 12 && hour < 14) {
+    periodConfig = periodConfigs.noon;
+  } else if (hour >= 14 && hour < 18) {
+    periodConfig = periodConfigs.workPM;
+  } else if (hour >= 18 && hour < 22) {
+    periodConfig = periodConfigs.evening;
+  } else {
+    periodConfig = periodConfigs.night;
+  }
+  
+  // 过滤未启用的组件，生成三栏内容
+  const filterAndRenderWidgets = (widgetIds) => {
+    return widgetIds
+      .filter(id => isWidgetActive(id))
+      .map(id => renderWidgetById(id))
+      .filter(html => html !== '')
+      .join('');
+  };
+  
+  const leftContent = filterAndRenderWidgets(periodConfig.leftWidgets);
+  const centerContent = filterAndRenderWidgets(periodConfig.centerWidgets);
+  const rightContent = filterAndRenderWidgets(periodConfig.rightWidgets);
+  
+  // 添加自定义组件到各栏
+  const customWidgetsInLeft = getCustomWidgetsForColumn('left');
+  const customWidgetsInCenter = getCustomWidgetsForColumn('center');
+  const customWidgetsInRight = getCustomWidgetsForColumn('right');
+  
+  // 添加 AI 生成的组件到各栏
+  const aiWidgetsInLeft = getAiWidgetsForColumn('left');
+  const aiWidgetsInCenter = getAiWidgetsForColumn('center');
+  const aiWidgetsInRight = getAiWidgetsForColumn('right');
+  
+  return {
+    label: periodConfig.label,
+    emoji: periodConfig.emoji,
+    columns: [
+      { type: 'custom', content: leftContent + customWidgetsInLeft + aiWidgetsInLeft },
+      { type: 'custom', content: centerContent + customWidgetsInCenter + aiWidgetsInCenter },
+      { type: 'custom', content: rightContent + customWidgetsInRight + aiWidgetsInRight }
+    ]
+  };
+}
+
+/* ==================== 模块渲染函数 ==================== */
+
+/**
+ * 渲染工作记忆模块
+ * @returns {string} HTML 字符串
+ */
+function renderMemoryModule() {
+  return `
+    <div class="module-title"><span class="module-icon">📌</span> 工作记忆详情</div>
+    ${memoryPages.map(p => `
+      <div class="memory-page">
+        <div class="page-title">${p.title}</div>
+        <div class="page-domain">${p.domain}</div>
+        <div class="page-summary">${p.summary}</div>
+      </div>
+    `).join('')}
+  `;
+}
+
+/**
+ * 渲染日程模块
+ * @returns {string} HTML 字符串
+ */
+function renderScheduleModule() {
+  return `
+    <div class="module-title" style="margin-top: 16px;"><span class="module-icon">📅</span> 今日日程</div>
+    ${scheduleData.map(s => `
+      <div class="schedule-item">
+        <span class="schedule-time">${s.time}</span>
+        <span class="schedule-title">${s.title}</span>
+      </div>
+    `).join('')}
+  `;
+}
+
+/**
+ * 渲染待办模块
+ * @returns {string} HTML 字符串
+ */
+function renderTodoModule() {
+  return `
+    <div class="module-title"><span class="module-icon">✅</span> 待办事项</div>
+    <div id="todoList">
+      ${todos.map((t, i) => `
+        <div class="todo-item">
+          <div class="todo-checkbox ${t.done ? 'checked' : ''}" data-index="${i}"></div>
+          <span class="todo-text ${t.done ? 'completed' : ''}">${t.text}</span>
+        </div>
+      `).join('')}
+    </div>
+    <div class="todo-add">
+      <input type="text" id="todoInput" placeholder="添加新待办...">
+      <button class="btn btn-sm" id="btnAddTodo">添加</button>
+    </div>
+    <div class="pomodoro">
+      <div class="pomodoro-label">番茄钟</div>
+      <div class="pomodoro-time" id="pomodoroTime">25:00</div>
+      <div class="pomodoro-controls">
+        <button class="btn btn-sm" id="btnPomodoroStart">开始</button>
+        <button class="btn btn-sm" id="btnPomodoroReset">重置</button>
+      </div>
+    </div>
+  `;
+}
+
+/**
+ * 渲染相关资料模块
+ * @returns {string} HTML 字符串
+ */
+function renderResourcesModule() {
+  return `
+    <div class="module-title" style="margin-top: 16px;"><span class="module-icon">🔗</span> 相关资料</div>
+    ${relatedResources.map(r => `
+      <div class="resource-item">
+        <div class="res-title">${r.title}</div>
+        <div class="res-source">${r.source}</div>
+        <div class="res-reason">${r.reason}</div>
+      </div>
+    `).join('')}
+  `;
+}
+
+/**
+ * 渲染新闻模块
+ * @returns {string} HTML 字符串
+ */
+function renderNewsModule() {
+  return `
+    <div class="module-title"><span class="module-icon">📰</span> 新闻摘要</div>
+    ${newsData.map(n => `
+      <div class="news-item">
+        <div class="news-title">${n.title}</div>
+        <div class="news-summary">${n.summary}</div>
+      </div>
+    `).join('')}
+  `;
+}
+
+/**
+ * 渲染知识卡片模块
+ * @returns {string} HTML 字符串
+ */
+function renderKnowledgeModule() {
+  return `
+    <div class="module-title" style="margin-top: 16px;"><span class="module-icon">💡</span> 每日知识卡片</div>
+    <div class="knowledge-card">
+      <div class="knowledge-term" id="knowledgeTerm">${knowledgeCards[0].term}</div>
+      <div class="knowledge-desc" id="knowledgeDesc">${knowledgeCards[0].desc}</div>
+    </div>
+    <div class="knowledge-nav" id="knowledgeNav">
+      ${knowledgeCards.map((_, i) => `
+        <div class="knowledge-dot ${i === 0 ? 'active' : ''}" data-index="${i}"></div>
+      `).join('')}
+    </div>
+  `;
+}
+
+/**
+ * 渲染阅读队列模块
+ * @returns {string} HTML 字符串
+ */
+function renderReadingModule() {
+  return `
+    <div class="module-title"><span class="module-icon">📚</span> 阅读队列</div>
+    ${readingQueue.map(r => `
+      <div class="reading-item">
+        <div class="reading-icon">📄</div>
+        <div class="reading-info">
+          <div class="reading-title">${r.title}</div>
+          <div class="reading-meta">${r.meta}</div>
+        </div>
+      </div>
+    `).join('')}
+  `;
+}
+
+/**
+ * 渲染习惯打卡模块
+ * @returns {string} HTML 字符串
+ */
+function renderHabitsModule() {
+  return `
+    <div class="module-title" style="margin-top: 16px;"><span class="module-icon">🎯</span> 习惯打卡</div>
+    <div class="habit-list" id="habitList">
+      ${habits.map((h, i) => `
+        <div class="habit-item ${h.checked ? 'checked' : ''}" data-index="${i}">
+          <span class="habit-icon">${h.icon}</span>
+          <span class="habit-name">${h.name}</span>
+          <span class="habit-status">${h.checked ? '已完成' : '未完成'}</span>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+/**
+ * 渲染今日回顾模块
+ * @returns {string} HTML 字符串
+ */
+function renderReviewModule() {
+  return `
+    <div class="module-title" style="margin-top: 16px;"><span class="module-icon">📊</span> 今日回顾</div>
+    ${reviewData.map(r => `
+      <div class="review-stat">
+        <span class="stat-label">${r.label}</span>
+        <span class="stat-value">${r.value}</span>
+      </div>
+    `).join('')}
+  `;
+}
+
+/**
+ * 渲染学习推荐模块
+ * @returns {string} HTML 字符串
+ */
+function renderLearningModule() {
+  return `
+    <div class="module-title"><span class="module-icon">🎓</span> 学习推荐</div>
+    ${learningResources.map(l => `
+      <div class="learning-item">
+        <div class="learn-title">${l.title}</div>
+        <div class="learn-source">${l.source}</div>
+      </div>
+    `).join('')}
+  `;
+}
+
+/**
+ * 渲染明日规划模块
+ * @returns {string} HTML 字符串
+ */
+function renderPlansModule() {
+  return `
+    <div class="module-title" style="margin-top: 16px;"><span class="module-icon">📝</span> 明日规划</div>
+    ${tomorrowPlans.map(p => `
+      <div class="plan-item">
+        <div class="plan-dot"></div>
+        <span class="plan-text">${p}</span>
+      </div>
+    `).join('')}
+  `;
+}
+
+/**
+ * 渲染放松模块
+ * @returns {string} HTML 字符串
+ */
+function renderRelaxModule() {
+  return `
+    <div class="module-title"><span class="module-icon">🌿</span> 放松一下</div>
+    <button class="relax-btn" onclick="this.querySelector('.relax-desc').textContent='深呼吸...吸气 4 秒...呼气 6 秒...'">
+      <span class="relax-icon">🫁</span>
+      <div>
+        <div class="relax-title">呼吸练习</div>
+        <div class="relax-desc">4-7-8 呼吸法，帮助快速放松</div>
+      </div>
+    </button>
+    <button class="relax-btn" onclick="this.querySelector('.relax-desc').textContent='闭上眼睛，感受当下的宁静...'">
+      <span class="relax-icon">🧘</span>
+      <div>
+        <div class="relax-title">正念冥想</div>
+        <div class="relax-desc">5 分钟引导冥想</div>
+      </div>
+    </button>
+    <button class="relax-btn" onclick="this.querySelector('.relax-desc').textContent='正在播放 lo-fi 轻音乐...'">
+      <span class="relax-icon">🎵</span>
+      <div>
+        <div class="relax-title">轻音乐</div>
+        <div class="relax-desc">Lo-fi beats 帮助放松</div>
+      </div>
+    </button>
+  `;
+}
+
+/**
+ * 渲染睡眠建议模块
+ * @returns {string} HTML 字符串
+ */
+function renderSleepModule() {
+  return `
+    <div class="module-title" style="margin-top: 16px;"><span class="module-icon">😴</span> 睡眠建议</div>
+    <div class="sleep-card">
+      <div class="sleep-icon">🌙</div>
+      <div class="sleep-text">
+        夜深了，注意休息。<br>
+        今天的 React 状态管理研究很有成效，<br>
+        明天继续也来得及。
+      </div>
+      <div class="sleep-tip">建议在 30 分钟内放下设备，保证 7-8 小时睡眠</div>
+    </div>
+  `;
+}
+
+/**
+ * 渲染单个模块的 HTML（兼容旧版本）
+ * @param {string} type - 模块类型
+ * @returns {string} HTML 字符串
+ */
+function renderModule(type) {
+  switch (type) {
+    case 'memory': return renderMemoryModule();
+    case 'schedule': return renderScheduleModule();
+    case 'todo': return renderTodoModule();
+    case 'resources': return renderResourcesModule();
+    case 'news': return renderNewsModule();
+    case 'knowledge': return renderKnowledgeModule();
+    case 'reading': return renderReadingModule();
+    case 'habits': return renderHabitsModule();
+    case 'review': return renderReviewModule();
+    case 'learning': return renderLearningModule();
+    case 'plans': return renderPlansModule();
+    case 'relax': return renderRelaxModule();
+    case 'sleep': return renderSleepModule();
+    default: return '';
+  }
+}
+
+/**
+ * 渲染三栏区域
+ */
+function renderThreeColumns() {
+  const period = getTimePeriod();
+  const container = document.getElementById('threeColumns');
+
+  /* 更新时段标签 */
+  document.getElementById('periodText').textContent = `${period.emoji} ${period.label}`;
+
+  /* 渲染三栏 */
+  container.innerHTML = period.columns.map((col, index) => {
+    const columnNames = ['左栏', '中栏', '右栏'];
+    
+    if (typeof col === 'string') {
+      /* 兼容旧格式：字符串类型 */
+      return `
+        <div class="card column-card slide-up">
+          ${renderModule(col)}
+        </div>
+      `;
+    } else if (col.type === 'custom') {
+      /* 新格式：自定义内容 */
+      const content = col.content;
+      
+      // 如果内容为空，显示空状态提示
+      if (!content || content.trim() === '') {
+        return `
+          <div class="card column-card slide-up">
+            <div class="empty-column-hint">
+              <div class="empty-column-hint-icon">📦</div>
+              <div class="empty-column-hint-text">${columnNames[index]}暂无组件</div>
+              <div class="empty-column-hint-btn" onclick="openSettings()">点击添加组件</div>
+            </div>
+          </div>
+        `;
+      }
+      
+      return `
+        <div class="card column-card slide-up widget-fade-enter">
+          ${content}
+        </div>
+      `;
+    } else if (col.type === 'todo') {
+      /* 待办模块（需要特殊处理交互） */
+      return `
+        <div class="card column-card slide-up widget-fade-enter">
+          ${renderTodoModule()}
+        </div>
+      `;
+    } else if (col.type === 'relax') {
+      /* 放松模块 */
+      return `
+        <div class="card column-card slide-up widget-fade-enter">
+          ${renderRelaxModule()}
+        </div>
+      `;
+    }
+    return '';
+  }).join('');
+
+  /* 绑定交互事件 */
+  bindColumnEvents();
+  
+  /* 加载自定义组件数据 */
+  loadCustomWidgetData();
+}
+
+/**
+ * 加载自定义组件数据
+ */
+function loadCustomWidgetData() {
+  // 加载所有激活的自定义组件的数据
+  customWidgets.forEach(widget => {
+    if (isWidgetActive(widget.id)) {
+      switch (widget.type) {
+        case 'api':
+          loadApiWidgetData(widget);
+          break;
+        case 'rss':
+          loadRssWidgetData(widget);
+          break;
+      }
+    }
+  });
+}
+
+/* ==================== 交互逻辑 ==================== */
+
+/**
+ * 绑定三栏内的交互事件
+ */
+function bindColumnEvents() {
+  /* 待办勾选 */
+  document.querySelectorAll('.todo-checkbox').forEach(cb => {
+    cb.addEventListener('click', function() {
+      const idx = parseInt(this.dataset.index);
+      todos[idx].done = !todos[idx].done;
+      this.classList.toggle('checked');
+      this.nextElementSibling.classList.toggle('completed');
+    });
+  });
+
+  /* 添加待办 */
+  const todoInput = document.getElementById('todoInput');
+  const btnAddTodo = document.getElementById('btnAddTodo');
+  if (todoInput && btnAddTodo) {
+    const addTodo = () => {
+      const text = todoInput.value.trim();
+      if (text) {
+        todos.push({ text, done: false });
+        todoInput.value = '';
+        renderThreeColumns();
+      }
+    };
+    btnAddTodo.addEventListener('click', addTodo);
+    todoInput.addEventListener('keydown', e => {
+      if (e.key === 'Enter') addTodo();
+    });
+  }
+
+  /* 番茄钟 */
+  const btnStart = document.getElementById('btnPomodoroStart');
+  const btnReset = document.getElementById('btnPomodoroReset');
+  if (btnStart && btnReset) {
+    let pomodoroInterval = null;
+    let pomodoroSeconds = 25 * 60;
+    let pomodoroRunning = false;
+
+    const updateDisplay = () => {
+      const m = Math.floor(pomodoroSeconds / 60);
+      const s = pomodoroSeconds % 60;
+      const el = document.getElementById('pomodoroTime');
+      if (el) el.textContent = `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    };
+
+    btnStart.addEventListener('click', () => {
+      if (pomodoroRunning) {
+        /* 暂停 */
+        clearInterval(pomodoroInterval);
+        pomodoroRunning = false;
+        btnStart.textContent = '继续';
+      } else {
+        /* 开始/继续 */
+        pomodoroRunning = true;
+        btnStart.textContent = '暂停';
+        pomodoroInterval = setInterval(() => {
+          pomodoroSeconds--;
+          if (pomodoroSeconds <= 0) {
+            clearInterval(pomodoroInterval);
+            pomodoroRunning = false;
+            pomodoroSeconds = 25 * 60;
+            btnStart.textContent = '开始';
+            alert('番茄钟结束！休息 5 分钟吧。');
+          }
+          updateDisplay();
+        }, 1000);
+      }
+    });
+
+    btnReset.addEventListener('click', () => {
+      clearInterval(pomodoroInterval);
+      pomodoroRunning = false;
+      pomodoroSeconds = 25 * 60;
+      btnStart.textContent = '开始';
+      updateDisplay();
+    });
+  }
+
+  /* 知识卡片切换 */
+  const knowledgeNav = document.getElementById('knowledgeNav');
+  if (knowledgeNav) {
+    knowledgeNav.querySelectorAll('.knowledge-dot').forEach(dot => {
+      dot.addEventListener('click', function() {
+        const idx = parseInt(this.dataset.index);
+        knowledgeNav.querySelectorAll('.knowledge-dot').forEach(d => d.classList.remove('active'));
+        this.classList.add('active');
+        const termEl = document.getElementById('knowledgeTerm');
+        const descEl = document.getElementById('knowledgeDesc');
+        if (termEl) termEl.textContent = knowledgeCards[idx].term;
+        if (descEl) descEl.textContent = knowledgeCards[idx].desc;
+      });
+    });
+  }
+
+  /* 习惯打卡 */
+  const habitList = document.getElementById('habitList');
+  if (habitList) {
+    habitList.querySelectorAll('.habit-item').forEach(item => {
+      item.addEventListener('click', function() {
+        const idx = parseInt(this.dataset.index);
+        habits[idx].checked = !habits[idx].checked;
+        this.classList.toggle('checked');
+        this.querySelector('.habit-status').textContent = habits[idx].checked ? '已完成' : '未完成';
+      });
+    });
+  }
+
+  /* ==================== 小组件交互 ==================== */
+
+  /* 热搜标签切换 */
+  document.querySelectorAll('.trending-tab').forEach(tab => {
+    tab.addEventListener('click', function() {
+      const tabType = this.dataset.tab;
+      const widget = this.closest('.trending-widget');
+      
+      /* 更新标签状态 */
+      widget.querySelectorAll('.trending-tab').forEach(t => t.classList.remove('active'));
+      this.classList.add('active');
+      
+      /* 更新内容 */
+      const listContainer = widget.querySelector('.trending-list');
+      if (listContainer) {
+        listContainer.innerHTML = renderTrendingContent(tabType);
+      }
+    });
+  });
+
+  /* 天气组件 - 点击切换城市（模拟） */
+  const weatherWidget = document.getElementById('weatherWidget');
+  if (weatherWidget) {
+    weatherWidget.addEventListener('click', function(e) {
+      /* 避免与内部元素冲突 */
+      if (e.target.closest('.weather-city')) {
+        const cities = [
+          { city: '北京', temp: 22, condition: '多云', icon: '⛅', high: 26, low: 15, aqi: 45, aqiLevel: '优', advice: '今天空气质量优，适合户外运动' },
+          { city: '上海', temp: 25, condition: '晴', icon: '☀️', high: 28, low: 18, aqi: 65, aqiLevel: '良', advice: '今天阳光明媚，记得涂防晒霜' },
+          { city: '深圳', temp: 29, condition: '小雨', icon: '🌧️', high: 31, low: 24, aqi: 35, aqiLevel: '优', advice: '今天有雨，记得带伞' },
+          { city: '杭州', temp: 23, condition: '阴', icon: '☁️', high: 25, low: 17, aqi: 55, aqiLevel: '良', advice: '天气凉爽，适合散步' }
+        ];
+        
+        /* 找到当前城市索引，切换到下一个 */
+        const currentIndex = cities.findIndex(c => c.city === weatherData.city);
+        const nextIndex = (currentIndex + 1) % cities.length;
+        const nextCity = cities[nextIndex];
+        
+        /* 更新数据 */
+        Object.assign(weatherData, nextCity);
+        
+        /* 重新渲染 */
+        renderThreeColumns();
+      }
+    });
+  }
+
+  /* 日历组件 - 点击展开月视图（模拟） */
+  const calendarWidget = document.getElementById('calendarWidget');
+  if (calendarWidget) {
+    calendarWidget.addEventListener('click', function() {
+      /* 模拟展开月视图效果 */
+      if (!this.classList.contains('expanded')) {
+        this.style.transform = 'scale(1.02)';
+        this.style.transition = 'transform 0.3s ease';
+        setTimeout(() => {
+          this.style.transform = '';
+          alert('月视图功能：显示完整日历（模拟）');
+        }, 300);
+      }
+    });
+  }
+}
+
+/* ==================== AI 上下文卡片交互 ==================== */
+
+/* 查看详情 - 展开/收起 */
+document.getElementById('btnViewDetails').addEventListener('click', function() {
+  const details = document.getElementById('contextDetails');
+  const isExpanded = details.classList.contains('expanded');
+  details.classList.toggle('expanded');
+  this.textContent = isExpanded ? '查看详情' : '收起详情';
+});
+
+/* 忽略卡片 */
+document.getElementById('btnDismiss').addEventListener('click', function() {
+  document.getElementById('aiContextCard').classList.add('dismissed');
+  setTimeout(() => {
+    document.getElementById('dismissReminder').classList.add('visible');
+  }, 300);
+});
+
+/* 今天不再提醒 */
+document.getElementById('dismissReminder').addEventListener('click', function() {
+  this.classList.remove('visible');
+  this.textContent = '已设置，今天不再提醒';
+  this.style.pointerEvents = 'none';
+});
+
+/* ==================== AI 对话交互 ==================== */
+
+const dialogInput = document.getElementById('dialogInput');
+const aiResponseEl = document.getElementById('aiResponse');
+let typingTimer = null;
+
+/**
+ * 模拟打字效果输出 AI 回复
+ * @param {string} text - 回复文本
+ */
+function typeResponse(text) {
+  /* 清除之前的定时器 */
+  if (typingTimer) clearInterval(typingTimer);
+
+  aiResponseEl.classList.add('visible');
+  aiResponseEl.innerHTML = '<span class="typing-cursor"></span>';
+
+  let index = 0;
+  typingTimer = setInterval(() => {
+    if (index < text.length) {
+      /* 在光标前插入字符 */
+      const cursor = aiResponseEl.querySelector('.typing-cursor');
+      if (cursor) {
+        /* 处理 Markdown 粗体标记 */
+        const char = text[index];
+        const cursorHTML = '<span class="typing-cursor"></span>';
+        /* 简单的 Markdown 渲染 */
+        let before = text.substring(0, index + 1);
+        before = before.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+        before = before.replace(/\n/g, '<br>');
+        aiResponseEl.innerHTML = before + cursorHTML;
+      }
+      index++;
+    } else {
+      clearInterval(typingTimer);
+      typingTimer = null;
+      /* 最终渲染（去掉光标） */
+      let finalText = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+      finalText = finalText.replace(/\n/g, '<br>');
+      aiResponseEl.innerHTML = finalText;
+    }
+  }, 20);
+}
+
+/**
+ * 处理用户输入
+ */
+function handleUserInput(text) {
+  if (!text.trim()) return;
+  dialogInput.value = '';
+
+  /* 查找匹配的预设回复 */
+  let response = aiResponses['default'];
+  for (const key of Object.keys(aiResponses)) {
+    if (key !== 'default' && text.includes(key)) {
+      response = aiResponses[key];
+      break;
+    }
+  }
+
+  typeResponse(response);
+}
+
+/* 发送按钮 */
+document.getElementById('btnSend').addEventListener('click', () => {
+  handleUserInput(dialogInput.value);
+});
+
+/* 回车发送 */
+dialogInput.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    handleUserInput(dialogInput.value);
+  }
+});
+
+/* 快捷指令 */
+document.querySelectorAll('.quick-cmd').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const cmd = this.dataset.cmd;
+    dialogInput.value = cmd;
+    handleUserInput(cmd);
+  });
+});
+
+/* ==================== 设置面板 ==================== */
+
+const settingsOverlay = document.getElementById('settingsOverlay');
+const settingsPanel = document.getElementById('settingsPanel');
+
+function openSettings() {
+  settingsOverlay.classList.add('open');
+  settingsPanel.classList.add('open');
+  // 打开时渲染小组件
+  renderWidgetMarket();
+  renderWidgetList();
+}
+
+function closeSettings() {
+  settingsOverlay.classList.remove('open');
+  settingsPanel.classList.remove('open');
+}
+
+document.getElementById('btnSettings').addEventListener('click', openSettings);
+document.getElementById('settingsClose').addEventListener('click', closeSettings);
+settingsOverlay.addEventListener('click', closeSettings);
+
+/* 设置标签页切换 */
+document.querySelectorAll('.settings-tab').forEach(tab => {
+  tab.addEventListener('click', function() {
+    const tabName = this.dataset.tab;
+    settingsActiveTab = tabName;
+    
+    // 更新标签页按钮状态
+    document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
+    this.classList.add('active');
+    
+    // 更新内容区
+    document.querySelectorAll('.settings-tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById('tab' + tabName.charAt(0).toUpperCase() + tabName.slice(1)).classList.add('active');
+    
+    // 切换到小组件标签时重新渲染
+    if (tabName === 'widgets') {
+      renderWidgetMarket();
+      renderWidgetList();
+    }
+  });
+});
+
+/* 小组件市场视图切换 */
+document.querySelectorAll('.widget-view-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const view = this.dataset.view;
+    widgetMarketView = view;
+    
+    // 更新按钮状态
+    document.querySelectorAll('.widget-view-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+    
+    // 重新渲染市场
+    renderWidgetMarket();
+  });
+});
+
+/* ==================== 小组件市场渲染 ==================== */
+
+/**
+ * 渲染小组件市场卡片
+ */
+function renderWidgetMarket() {
+  const grid = document.getElementById('widgetMarketGrid');
+  if (!grid) return;
+  
+  // 根据视图筛选小组件
+  const widgets = widgetMarketView === 'added'
+    ? widgetMarket.filter(w => isWidgetActive(w.id))
+    : widgetMarket;
+  
+  grid.innerHTML = widgets.map(widget => {
+    const isAdded = isWidgetActive(widget.id);
+    return `
+      <div class="widget-card ${isAdded ? 'added' : ''}" data-widget-id="${widget.id}">
+        <div class="widget-card-icon">${widget.icon}</div>
+        <div class="widget-card-name">${widget.name}</div>
+        <div class="widget-card-desc">${widget.desc}</div>
+        <button class="widget-card-action ${isAdded ? 'remove' : 'add'}" data-action="${isAdded ? 'remove' : 'add'}" data-widget-id="${widget.id}">
+          ${isAdded ? '✓ 已添加' : '+ 添加'}
+        </button>
+      </div>
+    `;
+  }).join('');
+  
+  // 绑定添加/移除事件
+  grid.querySelectorAll('.widget-card-action').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      const widgetId = this.dataset.widgetId;
+      const action = this.dataset.action;
+      if (action === 'add') {
+        addWidget(widgetId);
+      } else {
+        removeWidget(widgetId);
+      }
+    });
+  });
+}
+
+/**
+ * 渲染已添加的小组件列表
+ */
+function renderWidgetList() {
+  const list = document.getElementById('widgetList');
+  const countEl = document.getElementById('widgetListCount');
+  if (!list) return;
+  
+  // 更新计数
+  if (countEl) {
+    countEl.textContent = `${widgetConfig.activeWidgets.length} 个`;
+  }
+  
+  // 获取已激活的小组件，按排序顺序
+  const activeWidgets = widgetConfig.widgetOrder
+    .filter(id => isWidgetActive(id))
+    .map(id => widgetMarket.find(w => w.id === id))
+    .filter(Boolean);
+  
+  if (activeWidgets.length === 0) {
+    list.innerHTML = '<div class="widget-list-empty">暂未添加任何小组件</div>';
+    return;
+  }
+  
+  list.innerHTML = activeWidgets.map(widget => `
+    <div class="widget-list-item" data-widget-id="${widget.id}" draggable="true">
+      <span class="widget-drag-handle">☰</span>
+      <span class="widget-list-icon">${widget.icon}</span>
+      <span class="widget-list-name">${widget.name}</span>
+      <button class="widget-list-remove" data-widget-id="${widget.id}">移除</button>
+    </div>
+  `).join('');
+  
+  // 绑定移除事件
+  list.querySelectorAll('.widget-list-remove').forEach(btn => {
+    btn.addEventListener('click', function() {
+      removeWidget(this.dataset.widgetId);
+    });
+  });
+  
+  // 初始化拖拽排序
+  initDragSort();
+}
+
+/* ==================== 拖拽排序 ==================== */
+
+let draggedItem = null;
+
+/**
+ * 初始化拖拽排序功能
+ */
+function initDragSort() {
+  const list = document.getElementById('widgetList');
+  if (!list) return;
+  
+  const items = list.querySelectorAll('.widget-list-item');
+  
+  items.forEach(item => {
+    // 拖拽开始
+    item.addEventListener('dragstart', function(e) {
+      draggedItem = this;
+      this.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', this.dataset.widgetId);
+    });
+    
+    // 拖拽结束
+    item.addEventListener('dragend', function() {
+      this.classList.remove('dragging');
+      draggedItem = null;
+      // 移除所有 drag-over 状态
+      list.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    });
+    
+    // 拖拽经过
+    item.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+    });
+    
+    // 拖拽进入
+    item.addEventListener('dragenter', function(e) {
+      e.preventDefault();
+      if (this !== draggedItem) {
+        this.classList.add('drag-over');
+      }
+    });
+    
+    // 拖拽离开
+    item.addEventListener('dragleave', function() {
+      this.classList.remove('drag-over');
+    });
+    
+    // 放置
+    item.addEventListener('drop', function(e) {
+      e.preventDefault();
+      if (draggedItem && this !== draggedItem) {
+        const draggedId = draggedItem.dataset.widgetId;
+        const targetId = this.dataset.widgetId;
+        
+        // 找到两个元素的位置
+        const draggedIdx = widgetConfig.widgetOrder.indexOf(draggedId);
+        const targetIdx = widgetConfig.widgetOrder.indexOf(targetId);
+        
+        // 从原位置移除
+        widgetConfig.widgetOrder.splice(draggedIdx, 1);
+        // 插入到新位置
+        widgetConfig.widgetOrder.splice(targetIdx, 0, draggedId);
+        
+        // 保存并重新渲染
+        saveWidgetConfig();
+        renderWidgetList();
+      }
+      this.classList.remove('drag-over');
+    });
+  });
+}
+
+/* 设置中的模型选择同步 */
+document.getElementById('settingsModel').addEventListener('change', function() {
+  document.getElementById('modelSelect').value = this.value;
+});
+document.getElementById('modelSelect').addEventListener('change', function() {
+  document.getElementById('settingsModel').value = this.value;
+});
+
+/* 主题切换 */
+document.querySelectorAll('.theme-option').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const theme = this.dataset.theme;
+    document.documentElement.setAttribute('data-theme', theme);
+    document.querySelectorAll('.theme-option').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
+  });
+});
+
+/* ==================== 键盘快捷键 ==================== */
+
+document.addEventListener('keydown', e => {
+  /* / 聚焦搜索框 */
+  if (e.key === '/' && document.activeElement !== dialogInput && !document.activeElement.matches('input')) {
+    e.preventDefault();
+    dialogInput.focus();
+  }
+  /* Esc 关闭弹窗 */
+  if (e.key === 'Escape') {
+    closeSettings();
+    dialogInput.blur();
+  }
+});
+
+/* ==================== 自定义组件表单交互 ==================== */
+
+/**
+ * 当前选中的组件类型
+ */
+let selectedWidgetType = 'api';
+
+/**
+ * 当前选中的图标
+ */
+let selectedIcon = '📊';
+
+/**
+ * 渲染图标选择器
+ */
+function renderIconPicker() {
+  const picker = document.getElementById('iconPicker');
+  if (!picker) return;
+  
+  picker.innerHTML = availableIcons.map(icon => `
+    <div class="icon-option ${icon === selectedIcon ? 'selected' : ''}" data-icon="${icon}">
+      ${icon}
+    </div>
+  `).join('');
+  
+  // 绑定点击事件
+  picker.querySelectorAll('.icon-option').forEach(opt => {
+    opt.addEventListener('click', function() {
+      picker.querySelectorAll('.icon-option').forEach(o => o.classList.remove('selected'));
+      this.classList.add('selected');
+      selectedIcon = this.dataset.icon;
+    });
+  });
+}
+
+/**
+ * 渲染自定义组件列表
+ */
+function renderCustomWidgetList() {
+  const list = document.getElementById('customWidgetList');
+  if (!list) return;
+  
+  if (customWidgets.length === 0) {
+    list.innerHTML = '<div class="widget-list-empty">暂未创建任何自定义组件</div>';
+    return;
+  }
+  
+  const typeNames = {
+    api: 'API 数据',
+    rss: 'RSS 订阅',
+    timer: '计时器'
+  };
+  
+  list.innerHTML = customWidgets.map(widget => `
+    <div class="custom-widget-item" data-widget-id="${widget.id}">
+      <div class="custom-widget-item-info">
+        <span class="custom-widget-item-icon">${widget.icon}</span>
+        <span class="custom-widget-item-name">${widget.name}</span>
+        <span class="custom-widget-item-type">${typeNames[widget.type] || widget.type}</span>
+      </div>
+      <div class="custom-widget-item-actions">
+        <button class="custom-widget-btn" data-action="toggle" data-widget-id="${widget.id}">
+          ${isWidgetActive(widget.id) ? '禁用' : '启用'}
+        </button>
+        <button class="custom-widget-btn delete" data-action="delete" data-widget-id="${widget.id}">
+          删除
+        </button>
+      </div>
+    </div>
+  `).join('');
+  
+  // 绑定事件
+  list.querySelectorAll('.custom-widget-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const action = this.dataset.action;
+      const widgetId = this.dataset.widgetId;
+      
+      if (action === 'toggle') {
+        if (isWidgetActive(widgetId)) {
+          removeWidget(widgetId);
+        } else {
+          addWidget(widgetId);
+        }
+        renderCustomWidgetList();
+      } else if (action === 'delete') {
+        if (confirm('确定要删除这个自定义组件吗？')) {
+          deleteCustomWidget(widgetId);
+        }
+      }
+    });
+  });
+}
+
+/**
+ * 切换配置区域显示
+ * @param {string} type - 组件类型
+ */
+function toggleConfigSection(type) {
+  const apiConfig = document.getElementById('apiConfig');
+  const rssConfig = document.getElementById('rssConfig');
+  const timerConfig = document.getElementById('timerConfig');
+  
+  if (apiConfig) apiConfig.style.display = type === 'api' ? 'block' : 'none';
+  if (rssConfig) rssConfig.style.display = type === 'rss' ? 'block' : 'none';
+  if (timerConfig) timerConfig.style.display = type === 'timer' ? 'block' : 'none';
+}
+
+/**
+ * 获取表单数据
+ * @returns {Object}
+ */
+function getFormData() {
+  return {
+    type: selectedWidgetType,
+    name: document.getElementById('customWidgetName')?.value || '',
+    icon: selectedIcon,
+    column: document.getElementById('customWidgetColumn')?.value || 'right',
+    // API 配置
+    apiUrl: document.getElementById('apiUrl')?.value || '',
+    apiMethod: document.getElementById('apiMethod')?.value || 'GET',
+    refreshInterval: parseInt(document.getElementById('refreshInterval')?.value || '300000'),
+    titleField: document.getElementById('titleField')?.value || 'data.title',
+    valueField: document.getElementById('valueField')?.value || 'data.value',
+    // RSS 配置
+    rssUrl: document.getElementById('rssUrl')?.value || '',
+    itemCount: parseInt(document.getElementById('rssItemCount')?.value || '5'),
+    showSummary: document.getElementById('showSummary')?.value === 'true',
+    // 计时器配置
+    timerDuration: parseInt(document.getElementById('timerDuration')?.value || '25'),
+    alertType: document.getElementById('alertType')?.value || 'sound'
+  };
+}
+
+/**
+ * 验证表单
+ * @param {Object} data - 表单数据
+ * @returns {boolean}
+ */
+function validateForm(data) {
+  if (!data.name.trim()) {
+    alert('请输入组件名称');
+    return false;
+  }
+  
+  if (data.type === 'api' && !data.apiUrl.trim()) {
+    alert('请输入 API URL');
+    return false;
+  }
+  
+  if (data.type === 'rss' && !data.rssUrl.trim()) {
+    alert('请输入 RSS URL');
+    return false;
+  }
+  
+  return true;
+}
+
+/**
+ * 预览组件
+ */
+function previewWidget() {
+  const data = getFormData();
+  if (!validateForm(data)) return;
+  
+  // 创建临时预览
+  const tempWidget = {
+    id: 'preview_' + Date.now(),
+    type: data.type,
+    name: data.name,
+    icon: data.icon,
+    config: {}
+  };
+  
+  switch (data.type) {
+    case 'api':
+      tempWidget.config = {
+        url: data.apiUrl,
+        method: data.apiMethod,
+        refreshInterval: data.refreshInterval,
+        dataMapping: {
+          title: data.titleField,
+          value: data.valueField
+        }
+      };
+      break;
+    case 'rss':
+      tempWidget.config = {
+        url: data.rssUrl,
+        itemCount: data.itemCount,
+        showSummary: data.showSummary
+      };
+      break;
+    case 'timer':
+      tempWidget.config = {
+        duration: data.timerDuration,
+        alertType: data.alertType
+      };
+      break;
+  }
+  
+  // 显示预览
+  alert('组件预览:\n\n' + renderCustomWidget(tempWidget).replace(/<[^>]*>/g, '\n').trim());
+}
+
+/* ==================== AI 工坊 ==================== */
+
+/**
+ * AI 工坊预置模板
+ */
+const aiTemplates = [
+  {
+    keywords: ['btc', 'bitcoin', '比特币', '价格', '加密'],
+    name: 'BTC 价格监控',
+    icon: '📊',
+    code: `
+      <div style="text-align:center;padding:16px;font-family:system-ui;">
+        <div style="font-size:14px;color:#9898b0;">Bitcoin BTC</div>
+        <div style="font-size:36px;font-weight:bold;color:#4ade80;margin:8px 0;">$67,842.50</div>
+        <div style="font-size:13px;color:#4ade80;">▲ +2.34% (24h)</div>
+        <div style="margin-top:12px;font-size:11px;color:#5a5a72;">更新于 3 分钟前</div>
+      </div>
+    `
+  },
+  {
+    keywords: ['github', '贡献', 'commit', '提交'],
+    name: 'GitHub 贡献',
+    icon: '🐙',
+    code: `
+      <div style="padding:16px;font-family:system-ui;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <span style="font-size:20px;">🐙</span>
+          <span style="font-weight:bold;">今日贡献</span>
+        </div>
+        <div style="display:flex;gap:16px;">
+          <div style="flex:1;text-align:center;padding:12px;background:rgba(139,92,246,0.1);border-radius:8px;">
+            <div style="font-size:24px;font-weight:bold;color:#8b5cf6;">5</div>
+            <div style="font-size:11px;color:#9898b0;">提交</div>
+          </div>
+          <div style="flex:1;text-align:center;padding:12px;background:rgba(59,130,246,0.1);border-radius:8px;">
+            <div style="font-size:24px;font-weight:bold;color:#3b82f6;">2</div>
+            <div style="font-size:11px;color:#9898b0;">PR</div>
+          </div>
+          <div style="flex:1;text-align:center;padding:12px;background:rgba(74,222,128,0.1);border-radius:8px;">
+            <div style="font-size:24px;font-weight:bold;color:#4ade80;">3</div>
+            <div style="font-size:11px;color:#9898b0;">Review</div>
+          </div>
+        </div>
+      </div>
+    `
+  },
+  {
+    keywords: ['倒计时', 'countdown', '春节', '生日', '纪念日'],
+    name: '倒计时',
+    icon: '⏰',
+    code: `
+      <div style="text-align:center;padding:16px;font-family:system-ui;">
+        <div style="font-size:13px;color:#9898b0;">距离春节还有</div>
+        <div style="font-size:40px;font-weight:bold;margin:12px 0;background:linear-gradient(135deg,#8b5cf6,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">
+          <span id="days">128</span> 天
+        </div>
+        <div style="display:flex;justify-content:center;gap:12px;font-size:12px;color:#5a5a72;">
+          <span id="hours">14</span>时
+          <span id="mins">23</span>分
+          <span id="secs">45</span>秒
+        </div>
+      </div>
+    `
+  },
+  {
+    keywords: ['名言', 'quote', '语录', '格言', '鸡汤'],
+    name: '每日名言',
+    icon: '💬',
+    code: `
+      <div style="padding:20px;font-family:system-ui;text-align:center;">
+        <div style="font-size:28px;margin-bottom:12px;">"</div>
+        <div style="font-size:15px;line-height:1.8;color:#e8e8f0;font-style:italic;">
+          代码是写给人看的，附带能在机器上运行。
+        </div>
+        <div style="margin-top:12px;font-size:12px;color:#8b5cf6;">— Harold Abelson</div>
+        <button onclick="this.parentElement.querySelector('div:nth-child(2)').textContent='新的名言内容'" 
+                style="margin-top:12px;padding:4px 12px;border:1px solid rgba(139,92,246,0.3);background:transparent;color:#8b5cf6;border-radius:6px;cursor:pointer;font-size:12px;">
+          换一条
+        </button>
+      </div>
+    `
+  },
+  {
+    keywords: ['饮水', '喝水', 'water', '喝水记录'],
+    name: '饮水记录器',
+    icon: '💧',
+    code: `
+      <div style="padding:16px;font-family:system-ui;text-align:center;">
+        <div style="font-size:13px;color:#9898b0;">今日饮水</div>
+        <div style="position:relative;width:100px;height:100px;margin:12px auto;">
+          <svg width="100" height="100" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(59,130,246,0.15)" stroke-width="8"/>
+            <circle cx="50" cy="50" r="42" fill="none" stroke="#3b82f6" stroke-width="8" 
+                    stroke-dasharray="264" stroke-dashoffset="132" stroke-linecap="round"
+                    transform="rotate(-90 50 50)"/>
+          </svg>
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:20px;font-weight:bold;">1000</div>
+        </div>
+        <div style="font-size:11px;color:#5a5a72;">目标 2000ml</div>
+        <button onclick="this.previousElementSibling.textContent='已更新'" 
+                style="margin-top:12px;padding:6px 20px;background:linear-gradient(135deg,#3b82f6,#8b5cf6);color:white;border:none;border-radius:8px;cursor:pointer;font-size:13px;">
+          +250ml
+        </button>
+      </div>
+    `
+  },
+  {
+    keywords: ['单词', '英语', 'word', '学习', '背单词'],
+    name: '单词卡片',
+    icon: '📚',
+    code: `
+      <div style="padding:16px;font-family:system-ui;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <span style="font-size:12px;color:#9898b0;">每日单词</span>
+          <span style="font-size:11px;color:#5a5a72;background:rgba(139,92,246,0.1);padding:2px 8px;border-radius:4px;">CET-6</span>
+        </div>
+        <div style="font-size:22px;font-weight:bold;margin-bottom:8px;">Serendipity</div>
+        <div style="font-size:13px;color:#8b5cf6;margin-bottom:8px;">/ˌserənˈdɪpəti/</div>
+        <div style="font-size:13px;color:#9898b0;line-height:1.6;">n. 意外发现美好事物的能力；机缘巧合</div>
+        <div style="margin-top:12px;padding:10px;background:rgba(59,130,246,0.05);border-radius:8px;font-size:12px;color:#5a5a72;border-left:3px solid #3b82f6;">
+          The discovery of penicillin was a serendipity.
+        </div>
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button style="flex:1;padding:6px;border:1px solid rgba(74,222,128,0.3);background:transparent;color:#4ade80;border-radius:6px;cursor:pointer;font-size:12px;">认识</button>
+          <button style="flex:1;padding:6px;border:1px solid rgba(251,146,60,0.3);background:transparent;color:#fb923c;border-radius:6px;cursor:pointer;font-size:12px;">模糊</button>
+          <button style="flex:1;padding:6px;border:1px solid rgba(248,113,113,0.3);background:transparent;color:#f87171;border-radius:6px;cursor:pointer;font-size:12px;">不认识</button>
+        </div>
+      </div>
+    `
+  },
+  {
+    keywords: ['汇率', 'exchange', '换算', '美元', '人民币'],
+    name: '汇率换算',
+    icon: '💱',
+    code: `
+      <div style="padding:16px;font-family:system-ui;">
+        <div style="font-size:13px;color:#9898b0;margin-bottom:12px;">汇率换算</div>
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+          <input type="number" value="100" style="flex:1;padding:8px 12px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:8px;color:#e8e8f0;font-size:16px;outline:none;" />
+          <span style="color:#9898b0;">USD</span>
+        </div>
+        <div style="text-align:center;color:#5a5a72;margin-bottom:12px;">↓</div>
+        <div style="padding:12px;background:rgba(139,92,246,0.1);border-radius:8px;text-align:center;">
+          <span style="font-size:20px;font-weight:bold;color:#8b5cf6;">724.50</span>
+          <span style="color:#9898b0;margin-left:4px;">CNY</span>
+        </div>
+        <div style="font-size:11px;color:#5a5a72;margin-top:8px;text-align:center;">1 USD = 7.2450 CNY · 更新于今日</div>
+      </div>
+    `
+  }
+];
+
+/**
+ * 当前 AI 生成的组件状态
+ */
+let aiCurrentResult = null;
+
+/**
+ * 延迟函数
+ */
+function aiDelay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+/**
+ * 显示 Toast 提示
+ */
+function showToast(message, type) {
+  type = type || 'success';
+  // 移除已有 toast
+  const existing = document.querySelector('.ai-toast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.className = 'ai-toast ai-toast-' + type;
+  toast.textContent = message;
+  document.body.appendChild(toast);
+
+  requestAnimationFrame(function() {
+    toast.classList.add('show');
+  });
+
+  setTimeout(function() {
+    toast.classList.remove('show');
+    setTimeout(function() { toast.remove(); }, 300);
+  }, 2500);
+}
+
+/**
+ * 关键词匹配模板
+ */
+function matchTemplate(description) {
+  const lowerDesc = description.toLowerCase();
+  let bestMatch = null;
+  let bestScore = 0;
+
+  aiTemplates.forEach(function(template) {
+    let score = 0;
+    template.keywords.forEach(function(keyword) {
+      if (lowerDesc.indexOf(keyword.toLowerCase()) !== -1) {
+        score++;
+      }
+    });
+    if (score > bestScore) {
+      bestScore = score;
+      bestMatch = template;
+    }
+  });
+
+  return bestScore > 0 ? bestMatch : null;
+}
+
+/**
+ * 从描述中提取组件名称
+ */
+function extractName(description) {
+  // 去除常见前缀
+  let name = description.replace(/^(一个|显示|创建|生成|帮我|我要|写一个|做一个)\s*/i, '').trim();
+  // 截取前 15 个字符
+  if (name.length > 15) {
+    name = name.substring(0, 15) + '...';
+  }
+  return name;
+}
+
+/**
+ * 生成通用组件（无匹配模板时）
+ */
+function generateGenericWidget(description) {
+  const title = description.length > 20 ? description.substring(0, 20) + '...' : description;
+
+  return '<div style="padding:16px;font-family:system-ui;text-align:center;">' +
+    '<div style="font-size:24px;margin-bottom:8px;">✨</div>' +
+    '<div style="font-size:14px;font-weight:bold;margin-bottom:8px;">' + title + '</div>' +
+    '<div style="font-size:12px;color:#9898b0;line-height:1.6;">' +
+    'AI 已根据你的描述生成此组件<br>' +
+    '连接 API 后即可显示实时数据' +
+    '</div>' +
+    '<div style="margin-top:12px;padding:8px;background:rgba(139,92,246,0.1);border-radius:6px;font-size:11px;color:#8b5cf6;">' +
+    '🔧 可在设置中编辑组件代码' +
+    '</div>' +
+    '</div>';
+}
+
+/**
+ * 显示生成中状态
+ */
+function showAiGenerating() {
+  const resultSection = document.getElementById('aiResultSection');
+  const generating = document.getElementById('aiGenerating');
+  const preview = document.getElementById('aiPreview');
+
+  resultSection.style.display = 'block';
+  generating.style.display = 'block';
+  preview.style.display = 'none';
+
+  const progressFill = document.getElementById('aiProgressFill');
+  const progressPercent = document.getElementById('aiProgressPercent');
+  const genTimer = document.getElementById('aiGenTimer');
+
+  progressFill.style.width = '0%';
+  progressPercent.textContent = '0%';
+
+  let progress = 0;
+  let elapsed = 0;
+  const totalDuration = 2000 + Math.random() * 1000;
+  const interval = 50;
+
+  return new Promise(function(resolve) {
+    const timer = setInterval(function() {
+      elapsed += interval;
+      // 非线性进度：开始快，中间慢，最后快
+      const ratio = elapsed / totalDuration;
+      if (ratio < 0.3) {
+        progress = ratio / 0.3 * 40;
+      } else if (ratio < 0.7) {
+        progress = 40 + (ratio - 0.3) / 0.4 * 30;
+      } else {
+        progress = 70 + (ratio - 0.7) / 0.3 * 30;
+      }
+      progress = Math.min(progress, 99);
+
+      progressFill.style.width = progress + '%';
+      progressPercent.textContent = Math.round(progress) + '%';
+      genTimer.textContent = (elapsed / 1000).toFixed(0) + 's';
+
+      if (elapsed >= totalDuration) {
+        clearInterval(timer);
+        progressFill.style.width = '100%';
+        progressPercent.textContent = '100%';
+        resolve();
+      }
+    }, interval);
+  });
+}
+
+/**
+ * 在 iframe 沙箱中显示预览
+ */
+function showAiPreview(code, name, icon) {
+  const generating = document.getElementById('aiGenerating');
+  const preview = document.getElementById('aiPreview');
+  const previewContainer = document.getElementById('aiPreviewContainer');
+  const nameInput = document.getElementById('aiWidgetName');
+
+  generating.style.display = 'none';
+  preview.style.display = 'block';
+
+  // 设置组件名称
+  nameInput.value = name;
+
+  // 创建 iframe 沙箱
+  previewContainer.innerHTML = '';
+  const iframe = document.createElement('iframe');
+  iframe.sandbox = 'allow-scripts';
+  iframe.style.cssText = 'width:100%;height:220px;border:none;border-radius:8px;background:rgba(255,255,255,0.03);';
+  previewContainer.appendChild(iframe);
+
+  const doc = iframe.contentDocument || iframe.contentWindow.document;
+  doc.open();
+  doc.write(
+    '<!DOCTYPE html>' +
+    '<html><head><style>' +
+    'body { margin: 0; background: transparent; color: #e8e8f0; font-family: system-ui, -apple-system, sans-serif; }' +
+    '* { box-sizing: border-box; }' +
+    '</style></head><body>' + code + '</body></html>'
+  );
+  doc.close();
+
+  // 保存当前结果
+  aiCurrentResult = { code: code, name: name, icon: icon };
+}
+
+/**
+ * 生成 AI 组件（主函数）
+ */
+async function generateWidget(description) {
+  if (!description || !description.trim()) {
+    showToast('请输入组件描述', 'error');
+    return;
+  }
+
+  const btnGenerate = document.getElementById('btnAiGenerate');
+  btnGenerate.disabled = true;
+
+  // 1. 显示生成中动画
+  await showAiGenerating();
+
+  // 2. 匹配模板
+  const template = matchTemplate(description);
+
+  // 3. 生成结果
+  const code = template ? template.code : generateGenericWidget(description);
+  const name = template ? template.name : extractName(description);
+  const icon = template ? template.icon : '✨';
+
+  // 4. 显示预览
+  showAiPreview(code, name, icon);
+
+  btnGenerate.disabled = false;
+}
+
+/**
+ * 添加 AI 生成的组件到首页
+ */
+function addGeneratedWidget(code, name, icon, position) {
+  const widgetId = 'ai_' + Date.now();
+
+  // 保存到 localStorage
+  let aiWidgets = [];
+  try {
+    aiWidgets = JSON.parse(localStorage.getItem('mindtab_ai_widgets') || '[]');
+  } catch (e) {
+    aiWidgets = [];
+  }
+  aiWidgets.push({
+    id: widgetId,
+    name: name,
+    icon: icon,
+    code: code,
+    position: position,
+    createdAt: Date.now()
+  });
+  localStorage.setItem('mindtab_ai_widgets', JSON.stringify(aiWidgets));
+
+  // 添加到 activeWidgets
+  if (!isWidgetActive(widgetId)) {
+    widgetConfig.activeWidgets.push(widgetId);
+    widgetConfig.widgetOrder.push(widgetId);
+    saveWidgetConfig();
+  }
+
+  // 重新渲染页面
+  renderThreeColumns();
+
+  // 刷新历史列表
+  renderAiHistory();
+
+  // 显示成功提示
+  showToast('"' + name + '" 已添加到首页', 'success');
+}
+
+/**
+ * 渲染 AI 组件（用于三栏显示）
+ */
+function renderAiWidget(widgetData) {
+  return '<div class="custom-widget ai-generated-widget" data-widget-id="' + widgetData.id + '">' +
+    '<div class="module-title">' +
+    '<span class="module-icon">' + widgetData.icon + '</span> ' + widgetData.name +
+    '</div>' +
+    '<div class="ai-widget-content">' + widgetData.code + '</div>' +
+    '</div>';
+}
+
+/**
+ * 获取 AI 组件并注入到列中
+ */
+function getAiWidgetsForColumn(column) {
+  let aiWidgets = [];
+  try {
+    aiWidgets = JSON.parse(localStorage.getItem('mindtab_ai_widgets') || '[]');
+  } catch (e) {
+    aiWidgets = [];
+  }
+  return aiWidgets
+    .filter(function(w) { return w.position === column && isWidgetActive(w.id); })
+    .map(function(w) { return renderAiWidget(w); })
+    .join('');
+}
+
+/**
+ * 渲染 AI 工坊历史列表
+ */
+function renderAiHistory() {
+  const listEl = document.getElementById('aiHistoryList');
+  if (!listEl) return;
+
+  let aiWidgets = [];
+  try {
+    aiWidgets = JSON.parse(localStorage.getItem('mindtab_ai_widgets') || '[]');
+  } catch (e) {
+    aiWidgets = [];
+  }
+
+  if (aiWidgets.length === 0) {
+    listEl.innerHTML = '<div class="ai-history-empty">还没有生成过组件，试试上面的灵感提示吧</div>';
+    return;
+  }
+
+  listEl.innerHTML = aiWidgets.slice().reverse().map(function(w) {
+    const timeStr = formatAiTime(w.createdAt);
+    return '<div class="ai-history-item" data-id="' + w.id + '">' +
+      '<span class="ai-history-item-icon">' + w.icon + '</span>' +
+      '<div class="ai-history-item-info">' +
+      '<div class="ai-history-item-name">' + w.name + '</div>' +
+      '<div class="ai-history-item-time">' + timeStr + '</div>' +
+      '</div>' +
+      '<div class="ai-history-item-actions">' +
+      '<button class="ai-history-btn ai-history-btn-preview" data-id="' + w.id + '">预览</button>' +
+      '<button class="ai-history-btn ai-history-btn-delete" data-id="' + w.id + '">删除</button>' +
+      '</div>' +
+      '</div>';
+  }).join('');
+
+  // 绑定预览按钮事件
+  listEl.querySelectorAll('.ai-history-btn-preview').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const id = this.dataset.id;
+      const widget = aiWidgets.find(function(w) { return w.id === id; });
+      if (widget) {
+        showAiPreview(widget.code, widget.name, widget.icon);
+        document.getElementById('aiResultSection').style.display = 'block';
+        // 滚动到预览区域
+        document.getElementById('aiResultSection').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    });
+  });
+
+  // 绑定删除按钮事件
+  listEl.querySelectorAll('.ai-history-btn-delete').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      const id = this.dataset.id;
+      let widgets = [];
+      try {
+        widgets = JSON.parse(localStorage.getItem('mindtab_ai_widgets') || '[]');
+      } catch (e) {
+        widgets = [];
+      }
+      widgets = widgets.filter(function(w) { return w.id !== id; });
+      localStorage.setItem('mindtab_ai_widgets', JSON.stringify(widgets));
+
+      // 同时从 activeWidgets 中移除
+      removeWidget(id);
+
+      renderAiHistory();
+      showToast('组件已删除', 'success');
+    });
+  });
+}
+
+/**
+ * 格式化 AI 组件生成时间
+ */
+function formatAiTime(timestamp) {
+  const now = Date.now();
+  const diff = now - timestamp;
+  const minutes = Math.floor(diff / 60000);
+  const hours = Math.floor(diff / 3600000);
+  const days = Math.floor(diff / 86400000);
+
+  if (minutes < 1) return '刚刚';
+  if (minutes < 60) return minutes + '分钟前';
+  if (hours < 24) return hours + '小时前';
+  if (days < 7) return days + '天前';
+
+  const date = new Date(timestamp);
+  return (date.getMonth() + 1) + '/' + date.getDate();
+}
+
+/**
+ * 初始化 AI 工坊事件
+ */
+function initAiWorkshopEvents() {
+  // 生成按钮
+  const btnGenerate = document.getElementById('btnAiGenerate');
+  if (btnGenerate) {
+    btnGenerate.addEventListener('click', function() {
+      const desc = document.getElementById('aiDescription').value;
+      generateWidget(desc);
+    });
+  }
+
+  // 灵感提示标签点击
+  document.querySelectorAll('.ai-inspiration-tag').forEach(function(tag) {
+    tag.addEventListener('click', function() {
+      const prompt = this.dataset.prompt;
+      document.getElementById('aiDescription').value = prompt;
+      generateWidget(prompt);
+    });
+  });
+
+  // 重新生成按钮
+  const btnRegenerate = document.getElementById('btnAiRegenerate');
+  if (btnRegenerate) {
+    btnRegenerate.addEventListener('click', function() {
+      const desc = document.getElementById('aiDescription').value;
+      if (desc) {
+        generateWidget(desc);
+      }
+    });
+  }
+
+  // 调整描述按钮
+  const btnAdjust = document.getElementById('btnAiAdjust');
+  if (btnAdjust) {
+    btnAdjust.addEventListener('click', function() {
+      document.getElementById('aiResultSection').style.display = 'none';
+      document.getElementById('aiDescription').focus();
+    });
+  }
+
+  // 添加到首页按钮
+  const btnAddToHome = document.getElementById('btnAiAddToHome');
+  if (btnAddToHome) {
+    btnAddToHome.addEventListener('click', function() {
+      if (!aiCurrentResult) return;
+      const name = document.getElementById('aiWidgetName').value || aiCurrentResult.name;
+      const column = document.getElementById('aiWidgetColumn').value;
+      addGeneratedWidget(aiCurrentResult.code, name, aiCurrentResult.icon, column);
+    });
+  }
+}
+
+/**
+ * 初始化自定义组件事件
+ */
+function initCustomWidgetEvents() {
+  // 渲染图标选择器
+  renderIconPicker();
+  
+  // 组件类型切换
+  document.querySelectorAll('#widgetTypeGroup .form-radio').forEach(radio => {
+    radio.addEventListener('click', function() {
+      document.querySelectorAll('#widgetTypeGroup .form-radio').forEach(r => r.classList.remove('selected'));
+      this.classList.add('selected');
+      selectedWidgetType = this.dataset.type;
+      toggleConfigSection(selectedWidgetType);
+    });
+  });
+  
+  // 子标签切换
+  document.querySelectorAll('.custom-subtab').forEach(tab => {
+    tab.addEventListener('click', function() {
+      document.querySelectorAll('.custom-subtab').forEach(t => t.classList.remove('active'));
+      this.classList.add('active');
+      
+      const subtab = this.dataset.subtab;
+      document.getElementById('subtabCreate').style.display = subtab === 'create' ? 'block' : 'none';
+      document.getElementById('subtabList').style.display = subtab === 'list' ? 'block' : 'none';
+      const aiworkshopEl = document.getElementById('subtabAiworkshop');
+      if (aiworkshopEl) {
+        aiworkshopEl.style.display = subtab === 'aiworkshop' ? 'block' : 'none';
+      }
+      
+      if (subtab === 'list') {
+        renderCustomWidgetList();
+      }
+      if (subtab === 'aiworkshop') {
+        renderAiHistory();
+      }
+    });
+  });
+  
+  // 预览按钮
+  const btnPreview = document.getElementById('btnPreviewWidget');
+  if (btnPreview) {
+    btnPreview.addEventListener('click', previewWidget);
+  }
+  
+  // 创建按钮
+  const btnCreate = document.getElementById('btnCreateWidget');
+  if (btnCreate) {
+    btnCreate.addEventListener('click', function() {
+      const data = getFormData();
+      if (!validateForm(data)) return;
+      
+      const widget = createCustomWidget(data);
+      alert(`组件 "${widget.name}" 创建成功！`);
+      
+      // 清空表单
+      document.getElementById('customWidgetName').value = '';
+      document.getElementById('apiUrl').value = '';
+      document.getElementById('rssUrl').value = '';
+      
+      // 切换到列表标签
+      document.querySelectorAll('.custom-subtab').forEach(t => t.classList.remove('active'));
+      document.querySelector('.custom-subtab[data-subtab="list"]').classList.add('active');
+      document.getElementById('subtabCreate').style.display = 'none';
+      document.getElementById('subtabList').style.display = 'block';
+      
+      renderCustomWidgetList();
+    });
+  }
+}
+
+/* ==================== 初始化 ==================== */
+
+/* 加载小组件配置 */
+loadWidgetConfig();
+
+/* 加载自定义小组件 */
+loadCustomWidgets();
+
+/* 初始化自定义组件事件 */
+initCustomWidgetEvents();
+
+/* 初始化 AI 工坊事件 */
+initAiWorkshopEvents();
+
+/* 渲染三栏 */
+renderThreeColumns();
+
+/* 每分钟检查时段变化 */
+setInterval(() => {
+  renderThreeColumns();
+}, 60000);
+</script>
+
+</body>
+</html>
