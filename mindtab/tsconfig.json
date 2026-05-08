@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@mindtab/ui": ["packages/ui/src"],
+      "@mindtab/ui/*": ["packages/ui/src/*"],
+      "@mindtab/widgets": ["packages/widgets/src"],
+      "@mindtab/widgets/*": ["packages/widgets/src/*"],
+      "@mindtab/shared": ["packages/shared/src"],
+      "@mindtab/shared/*": ["packages/shared/src/*"],
+      "@mindtab/storage": ["packages/storage/src"],
+      "@mindtab/storage/*": ["packages/storage/src/*"],
+      "@mindtab/ai-core": ["packages/ai-core/src"],
+      "@mindtab/ai-core/*": ["packages/ai-core/src/*"],
+      "@mindtab/event-bus": ["packages/event-bus/src"],
+      "@mindtab/event-bus/*": ["packages/event-bus/src/*"]
+    }
+  },
+  "include": ["apps/*/src", "packages/*/src", "services/*/src"],
+  "exclude": ["node_modules", "dist"]
+}

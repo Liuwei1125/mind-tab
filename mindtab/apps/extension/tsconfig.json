@@ -1,0 +1,37 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "baseUrl": ".",
+    "paths": {
+      "@mindtab/ui": ["../../packages/ui/src"],
+      "@mindtab/ui/*": ["../../packages/ui/src/*"],
+      "@mindtab/shared": ["../../packages/shared/src"],
+      "@mindtab/shared/*": ["../../packages/shared/src/*"],
+      "@mindtab/storage": ["../../packages/storage/src"],
+      "@mindtab/storage/*": ["../../packages/storage/src/*"],
+      "@mindtab/event-bus": ["../../packages/event-bus/src"],
+      "@mindtab/event-bus/*": ["../../packages/event-bus/src/*"]
+    }
+  },
+  "include": ["src"],
+  "references": [
+    { "path": "../../packages/shared" },
+    { "path": "../../packages/ui" },
+    { "path": "../../packages/storage" },
+    { "path": "../../packages/event-bus" }
+  ]
+}
