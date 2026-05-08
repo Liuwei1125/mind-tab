@@ -1,4 +1,4 @@
-import { useState, useEffect, createContext, useContext } from 'react';
+import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import {
   Search,
   Plus,
@@ -43,10 +43,13 @@ const ThemeContext = createContext<{
 
 const useTheme = () => useContext(ThemeContext);
 
-const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
+const ThemeProvider = ({ children }: { children: ReactNode }) => {
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
-    const saved = localStorage.getItem('mindtab-theme');
-    return (saved as 'light' | 'dark') || 'light';
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('mindtab-theme');
+      return (saved as 'light' | 'dark') || 'light';
+    }
+    return 'light';
   });
 
   useEffect(() => {
@@ -636,42 +639,48 @@ const QuickLinks = () => {
   );
 };
 
-export default function NewTabPage() {
+export function AppContent() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
 
   return (
-    <ThemeProvider>
-      <div className="app-container">
-        <div className="top-bar">
-          <PeriodBadge />
-          <div className="top-bar-actions">
-            <button
-              className={`theme-toggle-btn ${theme === 'dark' ? 'active' : ''}`}
-              onClick={toggleTheme}
-              aria-label="切换主题"
-            >
-              <Sun size={16} className="theme-icon-light" />
-              <Moon size={16} className="theme-icon-dark" />
-            </button>
-            <button onClick={() => setSettingsOpen(true)} className="btn btn-sm" aria-label="打开设置">
-              <Settings size={14} />
-            </button>
-          </div>
+    <div className="app-container">
+      <div className="top-bar">
+        <PeriodBadge />
+        <div className="top-bar-actions">
+          <button
+            className={`theme-toggle-btn ${theme === 'dark' ? 'active' : ''}`}
+            onClick={toggleTheme}
+            aria-label="切换主题"
+          >
+            <Sun size={16} className="theme-icon-light" />
+            <Moon size={16} className="theme-icon-dark" />
+          </button>
+          <button onClick={() => setSettingsOpen(true)} className="btn btn-sm" aria-label="打开设置">
+            <Settings size={14} />
+          </button>
         </div>
-        <AIContextCard />
-        <AIDialogSection />
-
-        <div className="three-columns">
-          <LeftColumn />
-          <MiddleColumn />
-          <RightColumn />
-        </div>
-
-        <QuickLinks />
-
-        <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
       </div>
+      <AIContextCard />
+      <AIDialogSection />
+
+      <div className="three-columns">
+        <LeftColumn />
+        <MiddleColumn />
+        <RightColumn />
+      </div>
+
+      <QuickLinks />
+
+      <SettingsPanel isOpen={settingsOpen} onClose={() => setSettingsOpen(false)} />
+    </div>
+  );
+}
+
+export default function NewTabPage() {
+  return (
+    <ThemeProvider>
+      <AppContent />
     </ThemeProvider>
   );
 }
