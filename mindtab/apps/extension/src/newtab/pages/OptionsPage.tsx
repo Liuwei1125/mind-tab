@@ -1,4 +1,36 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { create } from 'zustand';
+import { persist, createJSONStorage } from 'zustand/middleware';
+
+interface SettingsStore {
+  theme: 'light' | 'dark' | 'system';
+  memoryEnabled: boolean;
+  autoCleanup: boolean;
+  cleanupDays: number;
+  setTheme: (theme: 'light' | 'dark' | 'system') => void;
+  setMemoryEnabled: (enabled: boolean) => void;
+  setAutoCleanup: (enabled: boolean) => void;
+  setCleanupDays: (days: number) => void;
+}
+
+const useSettingsStore = create<SettingsStore>()(
+  persist(
+    (set) => ({
+      theme: 'system',
+      memoryEnabled: true,
+      autoCleanup: false,
+      cleanupDays: 30,
+      setTheme: (theme) => set({ theme }),
+      setMemoryEnabled: (memoryEnabled) => set({ memoryEnabled }),
+      setAutoCleanup: (autoCleanup) => set({ autoCleanup }),
+      setCleanupDays: (cleanupDays) => set({ cleanupDays }),
+    }),
+    {
+      name: 'mindtab-settings',
+      storage: createJSONStorage(() => localStorage),
+    }
+  )
+);
 
 type Tab = 'general' | 'widgets' | 'ai' | 'privacy';
 
@@ -75,14 +107,16 @@ function NavItem({
 }
 
 function GeneralSettings() {
+  const { theme, setTheme } = useSettingsStore();
+
   return (
     <div className="space-y-6">
       <section>
         <h2 className="font-serif text-xl text-ink mb-4">主题</h2>
         <div className="flex gap-3">
-          <ThemeOption label="浅色" active />
-          <ThemeOption label="深色" />
-          <ThemeOption label="跟随系统" />
+          <ThemeOption label="浅色" active={theme === 'light'} onClick={() => setTheme('light')} />
+          <ThemeOption label="深色" active={theme === 'dark'} onClick={() => setTheme('dark')} />
+          <ThemeOption label="跟随系统" active={theme === 'system'} onClick={() => setTheme('system')} />
         </div>
       </section>
 
@@ -103,13 +137,30 @@ function GeneralSettings() {
           <ShortcutRow label="新建笔记" shortcut="Alt + N" />
         </div>
       </section>
+
+      <section>
+        <h2 className="font-serif text-xl text-ink mb-4">关于</h2>
+        <div className="p-4 bg-surface-card rounded-lg">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 bg-primary rounded-lg flex items-center justify-center">
+              <span className="text-on-primary font-bold text-lg">M</span>
+            </div>
+            <div>
+              <div className="font-medium text-ink">MindTab</div>
+              <div className="text-xs text-muted-soft">版本 0.1.0</div>
+            </div>
+          </div>
+          <p className="text-sm text-muted">AI 原生浏览器新标签页工作台</p>
+        </div>
+      </section>
     </div>
   );
 }
 
-function ThemeOption({ label, active }: { label: string; active?: boolean }) {
+function ThemeOption({ label, active, onClick }: { label: string; active?: boolean; onClick: () => void }) {
   return (
     <button
+      onClick={onClick}
       className={`px-4 py-2 rounded-lg border text-sm transition-colors ${
         active ? 'border-primary bg-primary/5 text-primary' : 'border-hairline text-muted hover:border-primary'
       }`}
@@ -176,9 +227,10 @@ function WidgetSettings() {
   );
 }
 
-function Toggle({ enabled }: { enabled: boolean }) {
+function Toggle({ enabled, onChange }: { enabled: boolean; onChange?: (enabled: boolean) => void }) {
   return (
     <button
+      onClick={() => onChange?.(!enabled)}
       className={`relative w-10 h-6 rounded-full transition-colors ${
         enabled ? 'bg-primary' : 'bg-hairline'
       }`}
@@ -271,29 +323,119 @@ function ProviderOption({
 }
 
 function PrivacySettings() {
+  const { memoryEnabled, autoCleanup, cleanupDays, setMemoryEnabled, setAutoCleanup, setCleanupDays } = useSettingsStore();
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+
+  const handleExportData = () => {
+    const data = {
+      todos: localStorage.getItem('mindtab-todos'),
+      notes: localStorage.getItem('mindtab-notes'),
+      widgetLayout: localStorage.getItem('mindtab-widget-layout'),
+      aiChat: localStorage.getItem('mindtab-ai-chat'),
+      settings: localStorage.getItem('mindtab-settings'),
+      exportedAt: new Date().toISOString(),
+    };
+
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `mindtab-backup-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleClearAllData = () => {
+    localStorage.removeItem('mindtab-todos');
+    localStorage.removeItem('mindtab-notes');
+    localStorage.removeItem('mindtab-widget-layout');
+    localStorage.removeItem('mindtab-ai-chat');
+    localStorage.removeItem('mindtab-settings');
+    setShowClearConfirm(false);
+    window.location.reload();
+  };
+
   return (
     <div className="space-y-6">
       <section>
         <h2 className="font-serif text-xl text-ink mb-4">记忆系统</h2>
         <div className="space-y-4">
-          <ToggleRow label="启用跨标签页记忆" description="记录您的浏览历史以提供智能推荐" enabled />
-          <ToggleRow
-            label="自动清理"
-            description="自动删除超过 30 天的记忆数据"
-            enabled={false}
-          />
+          <div className="flex items-center justify-between py-3 px-4 bg-surface-card rounded-lg">
+            <div>
+              <div className="text-sm font-medium text-ink">启用跨标签页记忆</div>
+              <div className="text-xs text-muted-soft">记录您的浏览历史以提供智能推荐</div>
+            </div>
+            <Toggle enabled={memoryEnabled} onChange={setMemoryEnabled} />
+          </div>
+          <div className="flex items-center justify-between py-3 px-4 bg-surface-card rounded-lg">
+            <div>
+              <div className="text-sm font-medium text-ink">自动清理</div>
+              <div className="text-xs text-muted-soft">自动删除超过一定天数的记忆数据</div>
+            </div>
+            <Toggle enabled={autoCleanup} onChange={setAutoCleanup} />
+          </div>
+          {autoCleanup && (
+            <div className="py-3 px-4 bg-surface-card rounded-lg">
+              <div className="text-sm font-medium text-ink mb-2">清理天数</div>
+              <select
+                value={cleanupDays}
+                onChange={(e) => setCleanupDays(Number(e.target.value))}
+                className="w-full h-9 px-3 bg-canvas border border-hairline rounded-lg text-sm focus:outline-none focus:border-primary"
+              >
+                <option value={7}>7 天</option>
+                <option value={14}>14 天</option>
+                <option value={30}>30 天</option>
+                <option value={90}>90 天</option>
+              </select>
+            </div>
+          )}
         </div>
       </section>
 
       <section>
         <h2 className="font-serif text-xl text-ink mb-4">数据管理</h2>
         <div className="space-y-3">
-          <button className="w-full px-4 py-3 bg-surface-card rounded-lg text-sm text-body hover:bg-surface-soft transition-colors text-left">
+          <button
+            onClick={handleExportData}
+            className="w-full px-4 py-3 bg-surface-card rounded-lg text-sm text-body hover:bg-surface-soft transition-colors text-left flex items-center gap-2"
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+              <polyline points="7 10 12 15 17 10" />
+              <line x1="12" y1="15" x2="12" y2="3" />
+            </svg>
             导出所有数据
           </button>
-          <button className="w-full px-4 py-3 bg-surface-card rounded-lg text-sm text-error hover:bg-error/5 transition-colors text-left">
-            清除所有数据
-          </button>
+          {showClearConfirm ? (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+              <p className="text-sm text-red-600 mb-3">确定要清除所有数据吗？此操作不可恢复。</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowClearConfirm(false)}
+                  className="flex-1 px-4 py-2 bg-surface-card rounded-lg text-sm text-body hover:bg-surface-soft transition-colors"
+                >
+                  取消
+                </button>
+                <button
+                  onClick={handleClearAllData}
+                  className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600 transition-colors"
+                >
+                  确认清除
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowClearConfirm(true)}
+              className="w-full px-4 py-3 bg-surface-card rounded-lg text-sm text-red-500 hover:bg-red-50 transition-colors text-left flex items-center gap-2"
+            >
+              <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+              </svg>
+              清除所有数据
+            </button>
+          )}
         </div>
       </section>
     </div>
