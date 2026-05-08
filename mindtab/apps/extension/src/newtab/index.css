@@ -107,7 +107,7 @@ h3 { font-size: 36px; letter-spacing: -0.5px; }
 h4 { font-size: 28px; letter-spacing: -0.3px; }
 
 .app-container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
   padding: var(--spacing-xl) var(--spacing-lg);
   min-height: 100%;
@@ -782,13 +782,14 @@ h4 { font-size: 28px; letter-spacing: -0.3px; }
 }
 
 .settings-panel {
-  width: 360px;
+  width: 480px;
   height: 100%;
-  background: var(--colors-surface-dark);
-  border-left: 1px solid var(--colors-surface-dark-elevated);
+  background: var(--colors-canvas);
+  border-left: 1px solid var(--colors-hairline);
   display: flex;
   flex-direction: column;
   animation: slideInRight 0.3s ease;
+  box-shadow: -4px 0 24px rgba(20, 20, 19, 0.08);
 }
 
 @keyframes slideInRight {
@@ -801,19 +802,19 @@ h4 { font-size: 28px; letter-spacing: -0.3px; }
   align-items: center;
   justify-content: space-between;
   padding: var(--spacing-lg);
-  border-bottom: 1px solid var(--colors-surface-dark-elevated);
+  border-bottom: 1px solid var(--colors-hairline);
 }
 
 .settings-header h3 {
   font-family: var(--font-display);
   font-size: 22px;
   font-weight: 400;
-  color: var(--colors-on-dark);
+  color: var(--colors-ink);
 }
 
 .settings-tabs {
   display: flex;
-  border-bottom: 1px solid var(--colors-surface-dark-elevated);
+  border-bottom: 1px solid var(--colors-hairline);
 }
 
 .settings-tab {
@@ -822,7 +823,7 @@ h4 { font-size: 28px; letter-spacing: -0.3px; }
   text-align: center;
   font-size: 14px;
   font-weight: 500;
-  color: var(--colors-on-dark-soft);
+  color: var(--colors-muted);
   background: none;
   border: none;
   cursor: pointer;
@@ -831,7 +832,7 @@ h4 { font-size: 28px; letter-spacing: -0.3px; }
 }
 
 .settings-tab:hover {
-  color: var(--colors-on-dark);
+  color: var(--colors-body);
 }
 
 .settings-tab.active {
@@ -859,15 +860,15 @@ h4 { font-size: 28px; letter-spacing: -0.3px; }
 
 .settings-field label {
   font-size: 14px;
-  color: var(--colors-on-dark-soft);
+  color: var(--colors-body);
 }
 
 .settings-input {
   padding: 10px 12px;
-  background: var(--colors-surface-dark-elevated);
-  border: 1px solid var(--colors-surface-dark-soft);
+  background: var(--colors-canvas);
+  border: 1px solid var(--colors-hairline);
   border-radius: var(--rounded-md);
-  color: var(--colors-on-dark);
+  color: var(--colors-ink);
   font-size: 14px;
   font-family: var(--font-body);
   outline: none;
@@ -878,7 +879,7 @@ h4 { font-size: 28px; letter-spacing: -0.3px; }
 }
 
 .settings-input::placeholder {
-  color: var(--colors-on-dark-soft);
+  color: var(--colors-muted-soft);
 }
 
 .settings-item {
@@ -887,8 +888,8 @@ h4 { font-size: 28px; letter-spacing: -0.3px; }
   justify-content: space-between;
   padding: var(--spacing-sm) 0;
   font-size: 14px;
-  color: var(--colors-on-dark-soft);
-  border-bottom: 1px solid var(--colors-surface-dark-elevated);
+  color: var(--colors-body);
+  border-bottom: 1px solid var(--colors-hairline-soft);
 }
 
 .badge-success {
@@ -905,7 +906,7 @@ h4 { font-size: 28px; letter-spacing: -0.3px; }
   align-items: center;
   justify-content: space-between;
   padding: var(--spacing-sm) var(--spacing-md);
-  background: var(--colors-surface-dark-elevated);
+  background: var(--colors-surface-card);
   border-radius: var(--rounded-md);
   margin-bottom: var(--spacing-xs);
 }
@@ -915,7 +916,7 @@ h4 { font-size: 28px; letter-spacing: -0.3px; }
   align-items: center;
   gap: var(--spacing-sm);
   font-size: 14px;
-  color: var(--colors-on-dark);
+  color: var(--colors-ink);
 }
 
 .btn-link-danger {
@@ -943,13 +944,13 @@ h4 { font-size: 28px; letter-spacing: -0.3px; }
   padding: var(--spacing-sm);
   text-align: center;
   font-size: 12px;
-  background: var(--colors-surface-dark-elevated);
+  background: var(--colors-surface-card);
   border-radius: var(--rounded-sm);
-  color: var(--colors-on-dark-soft);
+  color: var(--colors-muted);
 }
 
 .layout-col.active {
-  background: rgba(204, 120, 92, 0.2);
+  background: rgba(204, 120, 92, 0.15);
   color: var(--colors-primary);
 }
 
@@ -957,7 +958,7 @@ h4 { font-size: 28px; letter-spacing: -0.3px; }
   display: flex;
   gap: var(--spacing-xs);
   padding: var(--spacing-md);
-  border-top: 1px solid var(--colors-surface-dark-elevated);
+  border-top: 1px solid var(--colors-hairline);
 }
 
 .settings-footer .btn {
