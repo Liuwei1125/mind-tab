@@ -3,6 +3,12 @@ import { generateId } from '@mindtab/shared';
 
 const activeSessions: Map<number, Session> = new Map();
 
+function sendMessageSafely(message: ChromeMessage) {
+  chrome.runtime.sendMessage(message).catch(() => {
+    console.debug('[MindTab] No listener for message:', message.type);
+  });
+}
+
 chrome.runtime.onInstalled.addListener(() => {
   console.log('[MindTab] Extension installed');
 
@@ -21,7 +27,7 @@ chrome.runtime.onInstalled.addListener(() => {
 
 chrome.contextMenus.onClicked.addListener((info, tab) => {
   if (info.menuItemId === 'mindtab-save-to-memory') {
-    chrome.runtime.sendMessage({
+    sendMessageSafely({
       type: 'SAVE_MEMORY',
       payload: {
         url: tab?.url,
@@ -66,13 +72,13 @@ async function handleTabActivated(tab: chrome.tabs.Tab) {
 
   const existingSession = activeSessions.get(tab.id);
   if (existingSession) {
-    chrome.runtime.sendMessage({
+    sendMessageSafely({
       type: 'TAB_ACTIVATED',
       payload: existingSession,
     });
   } else {
     const session = await createSession(tab);
-    chrome.runtime.sendMessage({
+    sendMessageSafely({
       type: 'TAB_ACTIVATED',
       payload: session,
     });
@@ -92,7 +98,7 @@ async function createSession(tab: chrome.tabs.Tab): Promise<Session | null> {
 
   activeSessions.set(tab.id, session);
 
-  chrome.runtime.sendMessage({
+  sendMessageSafely({
     type: 'SESSION_CREATED',
     payload: session,
   });
@@ -106,7 +112,7 @@ function endSession(tabId: number) {
     session.endedAt = Date.now();
     session.duration = session.endedAt - session.startedAt;
 
-    chrome.runtime.sendMessage({
+    sendMessageSafely({
       type: 'SESSION_ENDED',
       payload: session,
     });
@@ -121,7 +127,7 @@ function updateSession(tabId: number, tab: chrome.tabs.Tab) {
     session.url = tab.url;
     session.title = tab.title || session.title;
 
-    chrome.runtime.sendMessage({
+    sendMessageSafely({
       type: 'SESSION_UPDATED',
       payload: session,
     });
